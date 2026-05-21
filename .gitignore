@@ -36,3 +36,10 @@ supabase/.temp
 # IDE
 .idea
 .vscode/settings.json
+
+# Temp files
+.npmrc.tmp
+
+# iiko API response samples (contain real data)
+scripts/iiko-responses/
+scripts/*.pdf

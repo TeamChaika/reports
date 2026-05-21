@@ -1,13 +1,6 @@
 /**
- * iiko API Explorer
- * Запуск: node scripts/explore-iiko.mjs
- * Требует: Node.js 18+ (встроенный fetch)
- *
- * Что делает:
- *   1. Запрашивает credentials интерактивно
- *   2. Делает запросы к ключевым справочникам
- *   3. Сохраняет ответы в scripts/iiko-responses/
- *   4. Выводит краткую структуру каждого ответа
+ * iiko API Explorer — v4 (v2 endpoints + POST OLAP)
+ * Запуск: IIKO_URL=... IIKO_LOGIN=... IIKO_PASSWORD=... node scripts/explore-iiko.mjs
  */
 
 import { createHash } from 'crypto'
@@ -20,248 +13,282 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 const OUTPUT_DIR = join(__dirname, 'iiko-responses')
 mkdirSync(OUTPUT_DIR, { recursive: true })
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
+function sha1(str) { return createHash('sha1').update(str).digest('hex') }
+function prompt(rl, q) { return new Promise(r => rl.question(q, r)) }
 
-function md5(str) {
-  return createHash('md5').update(str).digest('hex')
+function save(filename, content) {
+  writeFileSync(join(OUTPUT_DIR, filename), typeof content === 'string' ? content : JSON.stringify(content, null, 2), 'utf8')
+  console.log(`  💾 ${filename}`)
 }
 
-function prompt(rl, question) {
-  return new Promise((resolve) => rl.question(question, resolve))
+function parseXmlList(xml) {
+  const items = []
+  const rootMatch = xml.match(/^[\s\S]*?<([a-zA-Z][a-zA-Z0-9_-]*)[\s>]/)
+  if (!rootMatch) return []
+  const rootTag = rootMatch[1]
+  const inner = xml
+    .replace(new RegExp(`^[\\s\\S]*?<${rootTag}[^>]*>`), '')
+    .replace(new RegExp(`</${rootTag}>[\\s\\S]*$`), '')
+  const childMatch = inner.match(/<([a-zA-Z][a-zA-Z0-9_-]*)[\s>]/)
+  if (!childMatch) return []
+  const childTag = childMatch[1]
+  const re = new RegExp(`<${childTag}(?:\\s[^>]*)?>([\\s\\S]*?)<\\/${childTag}>`, 'gm')
+  let m
+  while ((m = re.exec(inner)) !== null) items.push(parseXmlObj(m[0]))
+  return items
 }
 
-function save(filename, data) {
-  const path = join(OUTPUT_DIR, filename)
-  writeFileSync(path, JSON.stringify(data, null, 2), 'utf8')
-  return path
-}
-
-function printStructure(label, data, maxItems = 2) {
-  console.log(`\n${'─'.repeat(60)}`)
-  console.log(`📦 ${label}`)
-  console.log('─'.repeat(60))
-
-  if (Array.isArray(data)) {
-    console.log(`  Тип: массив, ${data.length} записей`)
-    if (data.length > 0) {
-      console.log(`  Пример записи (первая):`)
-      printFields(data[0], '    ')
-      if (data.length > 1) {
-        console.log(`  ... и ещё ${data.length - 1} записей`)
-      }
+function parseXmlObj(xml) {
+  const obj = {}
+  const inner = xml.replace(/^<[^>]+>/, '').replace(/<\/[^>]+>\s*$/, '').trim()
+  const re = /<([a-zA-Z][a-zA-Z0-9_-]*)(?:\s[^>]*)?>[\s\S]*?<\/\1>|<([a-zA-Z][a-zA-Z0-9_-]*)(?:\s[^>]*)?\s*\/>/gm
+  let found = false, m
+  while ((m = re.exec(inner)) !== null) {
+    found = true
+    const tag = m[1] ?? m[2]
+    const innerContent = m[0].replace(/^<[^>]+>/, '').replace(/<\/[^>]+>\s*$/, '').trim()
+    const val = /<[a-zA-Z]/.test(innerContent) ? parseXmlObj(m[0]) : (innerContent || null)
+    if (obj[tag] !== undefined) {
+      if (!Array.isArray(obj[tag])) obj[tag] = [obj[tag]]
+      obj[tag].push(val)
+    } else {
+      obj[tag] = val
     }
-  } else if (typeof data === 'object' && data !== null) {
-    console.log(`  Тип: объект`)
-    printFields(data, '  ')
-  } else {
-    console.log(`  Значение: ${data}`)
+  }
+  return found ? obj : (inner || null)
+}
+
+function printStructure(label, data) {
+  console.log(`\n${'─'.repeat(64)}`)
+  console.log(`📦 ${label}`)
+  console.log('─'.repeat(64))
+  const arr = Array.isArray(data) ? data : (data ? [data] : [])
+  if (!arr.length) { console.log('  (пусто)'); return }
+  console.log(`  Записей: ${arr.length}`)
+  for (const [i, item] of arr.slice(0, 2).entries()) {
+    if (!item || typeof item !== 'object') continue
+    console.log(`\n  Запись ${i + 1}:`)
+    for (const [k, v] of Object.entries(item)) {
+      const d = Array.isArray(v) ? `[${v.length} items]` : v && typeof v === 'object' ? `{${Object.keys(v).join(', ')}}` : String(v ?? 'null').slice(0, 80)
+      console.log(`    ${k}: ${d}`)
+    }
   }
 }
 
-function printFields(obj, indent = '') {
-  for (const [key, value] of Object.entries(obj)) {
-    const type = Array.isArray(value)
-      ? `array[${value.length}]`
-      : value === null
-        ? 'null'
-        : typeof value
-    const preview =
-      typeof value === 'string' && value.length > 60
-        ? `"${value.slice(0, 57)}..."`
-        : Array.isArray(value) && value.length > 0
-          ? `[${JSON.stringify(value[0])}...]`
-          : JSON.stringify(value)
-    console.log(`${indent}${key}: ${type} = ${preview}`)
-  }
-}
+// ── HTTP клиент ───────────────────────────────────────────────────────────────
 
-// ── iiko API ─────────────────────────────────────────────────────────────────
-
-async function authenticate(baseUrl, login, passwordMd5) {
-  const url = `${baseUrl}/resto/api/auth?login=${encodeURIComponent(login)}&pass=${passwordMd5}`
-  console.log(`\n🔑 Аутентификация...`)
-  const res = await fetch(url, { signal: AbortSignal.timeout(10_000) })
-  if (!res.ok) throw new Error(`Auth failed: HTTP ${res.status}`)
+async function authenticate(baseUrl, login, passwordSha1) {
+  console.log('\n🔑 Аутентификация...')
+  const res = await fetch(`${baseUrl}/resto/api/auth?login=${encodeURIComponent(login)}&pass=${passwordSha1}`, { signal: AbortSignal.timeout(10_000) })
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
   const key = (await res.text()).trim()
-  if (!key || key.startsWith('<') || key.length < 10) {
-    throw new Error(`Auth вернул невалидный ключ: "${key.slice(0, 100)}"`)
-  }
-  console.log(`  ✅ Получен sessionKey (${key.length} символов)`)
+  if (!key || key.startsWith('<') || key.length < 10) throw new Error(`Невалидный ключ: ${key.slice(0, 80)}`)
+  console.log(`  ✅ sessionKey (${key.length} символов)`)
   return key
 }
 
-async function apiGet(baseUrl, key, path, label) {
-  const url = `${baseUrl}${path}${path.includes('?') ? '&' : '?'}key=${key}`
+async function httpGet(baseUrl, key, path) {
+  const sep = path.includes('?') ? '&' : '?'
+  const url = `${baseUrl}${path}${sep}key=${key}`
   console.log(`\n⬇️  GET ${path.split('?')[0]}`)
   try {
     const res = await fetch(url, { signal: AbortSignal.timeout(30_000) })
-    if (!res.ok) {
-      const body = await res.text()
-      console.log(`  ❌ HTTP ${res.status}: ${body.slice(0, 200)}`)
-      return null
-    }
-    const data = await res.json()
-    console.log(`  ✅ Получен ответ`)
-    return data
-  } catch (err) {
-    console.log(`  ❌ Ошибка: ${err.message}`)
-    return null
-  }
+    const text = await res.text()
+    if (!res.ok) { console.log(`  ❌ ${res.status}: ${text.slice(0, 100)}`); return null }
+    const t = text.trimStart()
+    if (t.startsWith('{') || t.startsWith('[')) { console.log('  ✅ JSON'); return { format: 'json', raw: text, data: JSON.parse(text) } }
+    if (t.startsWith('<')) { console.log('  ✅ XML'); return { format: 'xml', raw: text, data: parseXmlList(text) } }
+    console.log(`  ⚠️  ${t.slice(0, 60)}`); return null
+  } catch (e) { console.log(`  ❌ ${e.message}`); return null }
+}
+
+async function httpPost(baseUrl, key, path, body) {
+  const sep = path.includes('?') ? '&' : '?'
+  const url = `${baseUrl}${path}${sep}key=${key}`
+  console.log(`\n⬆️  POST ${path.split('?')[0]}`)
+  console.log(`  Body: ${JSON.stringify(body).slice(0, 120)}`)
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(30_000),
+    })
+    const text = await res.text()
+    if (!res.ok) { console.log(`  ❌ ${res.status}: ${text.slice(0, 200)}`); return null }
+    const t = text.trimStart()
+    if (t.startsWith('{') || t.startsWith('[')) { console.log('  ✅ JSON'); return { format: 'json', raw: text, data: JSON.parse(text) } }
+    if (t.startsWith('<')) { console.log('  ✅ XML'); return { format: 'xml', raw: text, data: parseXmlList(text) } }
+    console.log(`  ⚠️  ${t.slice(0, 60)}`); return null
+  } catch (e) { console.log(`  ❌ ${e.message}`); return null }
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 
 async function main() {
-  const rl = createInterface({ input: process.stdin, output: process.stdout })
-
   console.log('╔══════════════════════════════════════════════════════════╗')
-  console.log('║           iiko API Explorer — Shift Reports              ║')
+  console.log('║        iiko API Explorer v4 — Shift Reports              ║')
   console.log('╚══════════════════════════════════════════════════════════╝')
-  console.log('Ответы сохраняются в: scripts/iiko-responses/\n')
 
-  const baseUrl = (await prompt(rl, 'iiko URL (например http://1.2.3.4:9900): ')).trim().replace(/\/$/, '')
-  const login = (await prompt(rl, 'Логин: ')).trim()
-  const password = await prompt(rl, 'Пароль: ')
-  rl.close()
-
-  const passwordMd5 = md5(password.trim())
-  console.log(`\nMD5 пароля: ${passwordMd5}`)
-
-  let key
-  try {
-    key = await authenticate(baseUrl, login, passwordMd5)
-  } catch (err) {
-    console.error(`\n❌ Не удалось подключиться: ${err.message}`)
-    process.exit(1)
-  }
-
-  const results = {}
-
-  // 1. Departments
-  const departments = await apiGet(baseUrl, key, '/resto/api/corporation/departments', 'Departments')
-  if (departments) {
-    results.departments = departments
-    save('departments.json', departments)
-    printStructure('Заведения / Департаменты (departments)', departments)
-  }
-
-  // 2. Pay Types
-  const payTypes = await apiGet(baseUrl, key, '/resto/api/corporation/payTypes', 'PayTypes')
-  if (payTypes) {
-    results.payTypes = payTypes
-    save('pay-types.json', payTypes)
-    printStructure('Типы оплат (payTypes)', payTypes)
-  }
-
-  // 3. Employees
-  const employees = await apiGet(baseUrl, key, '/resto/api/employees', 'Employees')
-  if (employees) {
-    results.employees = employees
-    save('employees.json', employees)
-    printStructure('Сотрудники (employees)', employees)
-  }
-
-  // 4. Stores (склады)
-  const stores = await apiGet(baseUrl, key, '/resto/api/corporation/stores', 'Stores')
-  if (stores) {
-    results.stores = stores
-    save('stores.json', stores)
-    printStructure('Склады (stores)', stores)
-  }
-
-  // 5. Discounts
-  const discounts = await apiGet(baseUrl, key, '/resto/api/corporation/discounts', 'Discounts')
-  if (discounts) {
-    results.discounts = discounts
-    save('discounts.json', discounts)
-    printStructure('Скидки (discounts)', discounts)
-  }
-
-  // 6. Nomenclature — берём первый активный department
-  let firstDeptId = null
-  if (Array.isArray(departments)) {
-    const active = departments.find((d) => !d.isDeleted && (d.type === 'DEPARTMENT' || d.type === 'RESTAURANT'))
-    firstDeptId = active?.id ?? departments[0]?.id
-  }
-
-  if (firstDeptId) {
-    console.log(`\n📍 Запрашиваем номенклатуру для departmentId: ${firstDeptId}`)
-    const nomenclature = await apiGet(
-      baseUrl,
-      key,
-      `/resto/api/nomenclature?departmentId=${firstDeptId}`,
-      'Nomenclature',
-    )
-    if (nomenclature) {
-      results.nomenclature = nomenclature
-      save('nomenclature.json', nomenclature)
-
-      // Номенклатура обычно имеет структуру { products: [...], groups: [...] }
-      if (nomenclature.products || nomenclature.groups) {
-        console.log(`\n${'─'.repeat(60)}`)
-        console.log('📦 Номенклатура (nomenclature)')
-        console.log('─'.repeat(60))
-        if (nomenclature.groups) {
-          console.log(`  Групп: ${nomenclature.groups.length}`)
-          if (nomenclature.groups[0]) {
-            console.log('  Пример группы:')
-            printFields(nomenclature.groups[0], '    ')
-          }
-        }
-        if (nomenclature.products) {
-          console.log(`  Позиций: ${nomenclature.products.length}`)
-          if (nomenclature.products[0]) {
-            console.log('  Пример позиции:')
-            printFields(nomenclature.products[0], '    ')
-          }
-        }
-      } else {
-        printStructure('Номенклатура (nomenclature)', nomenclature)
-      }
-    }
+  let baseUrl, login, passwordSha1
+  if (process.env.IIKO_URL && process.env.IIKO_LOGIN && process.env.IIKO_PASSWORD) {
+    baseUrl = process.env.IIKO_URL.trim().replace(/\/$/, '')
+    login = process.env.IIKO_LOGIN.trim()
+    passwordSha1 = sha1(process.env.IIKO_PASSWORD.trim())
+    console.log(`\n  ${baseUrl}  /  ${login}`)
   } else {
-    console.log('\n⚠️  Не найден активный департамент для запроса номенклатуры')
+    const rl = createInterface({ input: process.stdin, output: process.stdout })
+    baseUrl = (await prompt(rl, 'iiko URL: ')).trim().replace(/\/$/, '')
+    login = (await prompt(rl, 'Логин: ')).trim()
+    passwordSha1 = sha1((await prompt(rl, 'Пароль: ')).trim())
+    rl.close()
   }
 
-  // 7. OLAP — тестовый запрос за последние 7 дней
-  const today = new Date()
-  const weekAgo = new Date(today)
-  weekAgo.setDate(weekAgo.getDate() - 7)
-  const fmt = (d) => d.toISOString().split('T')[0]
+  const key = await authenticate(baseUrl, login, passwordSha1)
 
-  if (firstDeptId) {
-    const olapPath =
-      `/resto/api/reports/olap?` +
-      `department=${firstDeptId}` +
-      `&dateFrom=${fmt(weekAgo)}` +
-      `&dateTo=${fmt(today)}` +
-      `&groupBy=OpenDate` +
-      `&groupBy=PayTypes` +
-      `&report=SALES`
+  // ── Departments ─────────────────────────────────────────────────────────────
+  console.log('\n═══ СПРАВОЧНИКИ ═══')
+  const depts = await httpGet(baseUrl, key, '/resto/api/corporation/departments')
+  let restaurants = []
+  if (depts?.data) {
+    save('departments.xml', depts.raw)
+    save('departments.json', depts.data)
+    restaurants = depts.data.filter(d => d?.type === 'DEPARTMENT')
+    console.log(`  → Всего: ${depts.data.length}, type=DEPARTMENT: ${restaurants.length}`)
+    for (const r of restaurants.slice(0, 15)) console.log(`    • [${r.code ?? '—'}] ${r.name} (${r.id})`)
+    printStructure('Departments — структура полей', depts.data.slice(0, 2))
+  }
 
-    const olap = await apiGet(baseUrl, key, olapPath, 'OLAP')
-    if (olap) {
-      results.olap = olap
-      save('olap-sample.json', olap)
-      printStructure('OLAP отчёт (7 дней)', olap)
+  const deptId = restaurants[0]?.id
+  const deptName = restaurants[0]?.name ?? '?'
+
+  // ── Nomenclature v2 ─────────────────────────────────────────────────────────
+  console.log('\n═══ НОМЕНКЛАТУРА ═══')
+  const nomPaths = [
+    `/resto/api/v2/entities/products/list?includeDeleted=false`,
+    deptId ? `/resto/api/nomenclature?departmentId=${deptId}` : null,
+    `/resto/api/v2/entities/products/list`,
+    `/resto/api/products`,
+  ].filter(Boolean)
+
+  for (const path of nomPaths) {
+    const r = await httpGet(baseUrl, key, path)
+    if (r?.data) {
+      save('nomenclature.xml', r.raw)
+      save('nomenclature.json', r.data)
+      printStructure(`Номенклатура (${path.split('?')[0]})`, Array.isArray(r.data) ? r.data.slice(0, 2) : [r.data])
+      break
     }
   }
 
-  // Итог
+  // ── PayTypes ────────────────────────────────────────────────────────────────
+  console.log('\n═══ ТИПЫ ОПЛАТ ═══')
+  const payPaths = [
+    '/resto/api/v2/entities/paymentTypes',
+    '/resto/api/v2/entities/employees/roles',
+    '/resto/api/v2/paymentTypes',
+    '/resto/api/corporation/payTypes',
+    '/resto/api/payTypes',
+    '/resto/api/v2/entities/employees/employeeRoles',
+  ]
+  for (const path of payPaths) {
+    const r = await httpGet(baseUrl, key, path)
+    if (r?.data) {
+      save('pay-types.json', r.data)
+      printStructure(`PayTypes (${path})`, Array.isArray(r.data) ? r.data : [r.data])
+      break
+    }
+  }
+
+  // ── OLAP Columns ────────────────────────────────────────────────────────────
+  console.log('\n═══ OLAP КОЛОНКИ ═══')
+  const olapCols = await httpGet(baseUrl, key, '/resto/api/v2/reports/olap/columns?reportType=SALES')
+  if (olapCols?.data) {
+    save('olap-columns.json', olapCols.data)
+    const arr = Array.isArray(olapCols.data) ? olapCols.data : [olapCols.data]
+    console.log(`  Доступных полей: ${arr.length}`)
+    arr.slice(0, 20).forEach(c => console.log(`    • ${c?.id ?? c?.name ?? JSON.stringify(c).slice(0, 60)}`))
+  }
+
+  // ── OLAP v2 POST ────────────────────────────────────────────────────────────
+  console.log('\n═══ OLAP v2 ═══')
+  const today = new Date().toISOString().split('T')[0]
+  const week = new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0]
+
+  // Даты без времени (OpenDate.Typed — тип DATE, не DATETIME)
+  // Поля агрегации — из реально доступных в /olap/columns
+  const olapBody = {
+    reportType: 'SALES',
+    buildSummary: 'false',
+    groupByRowFields: ['OpenDate.Typed', 'Department'],
+    groupByColFields: ['PayTypes'],
+    aggregateFields: ['DishAmountInt', 'DishSumInt', 'DishDiscountSumInt'],
+    filters: {
+      'OpenDate.Typed': {
+        filterType: 'DateRange',
+        periodType: 'CUSTOM',
+        from: week,
+        to: today,
+      },
+    },
+  }
+
+  const olapV2Post = await httpPost(baseUrl, key, '/resto/api/v2/reports/olap', olapBody)
+  if (olapV2Post?.data) {
+    const rows = Array.isArray(olapV2Post.data) ? olapV2Post.data : (olapV2Post.data?.data ?? [olapV2Post.data])
+    save('olap-v2.json', olapV2Post.data)
+    printStructure('OLAP v2 (POST)', rows.slice(0, 3))
+    if (rows[0]) {
+      console.log('\n  Все ключи первой строки:')
+      Object.keys(rows[0]).forEach(k => console.log(`    ${k}: ${JSON.stringify(rows[0][k]).slice(0, 60)}`))
+    }
+  }
+
+  // Вариант 2: один ресторан с фильтром по Department.Id
+  if (!olapV2Post?.data && deptId) {
+    console.log('  → Пробуем с фильтром по Department.Id...')
+    const olapWithDept = {
+      ...olapBody,
+      filters: {
+        ...olapBody.filters,
+        'Department.Id': { filterType: 'IncludeValues', values: [deptId] },
+      },
+    }
+    const r2 = await httpPost(baseUrl, key, '/resto/api/v2/reports/olap', olapWithDept)
+    if (r2?.data) {
+      save('olap-v2.json', r2.data)
+      printStructure('OLAP v2 с Department.Id', Array.isArray(r2.data) ? r2.data.slice(0, 3) : [r2.data])
+    }
+  }
+
+  // ── Employees ───────────────────────────────────────────────────────────────
+  console.log('\n═══ СОТРУДНИКИ ═══')
+  const emps = await httpGet(baseUrl, key, '/resto/api/employees')
+  if (emps?.data) {
+    const arr = Array.isArray(emps.data) ? emps.data : [emps.data]
+    const active = arr.filter(e => e?.deleted === 'false' || e?.deleted === false)
+    const notSupplier = active.filter(e => e?.supplier === 'false' || e?.supplier === false)
+    console.log(`  Всего: ${arr.length}`)
+    console.log(`  Активных (deleted=false): ${active.length}`)
+    console.log(`  Не поставщики: ${notSupplier.length}`)
+    save('employees.json', arr.slice(0, 100))
+    printStructure('Employees — структура полей', arr.slice(0, 2))
+  }
+
+  // ── Stores ──────────────────────────────────────────────────────────────────
+  console.log('\n═══ СКЛАДЫ ═══')
+  const stores = await httpGet(baseUrl, key, '/resto/api/corporation/stores')
+  if (stores?.data) {
+    save('stores.json', stores.data)
+    printStructure('Stores', stores.data.slice(0, 2))
+  }
+
   console.log('\n')
   console.log('╔══════════════════════════════════════════════════════════╗')
-  console.log('║                       ИТОГ                              ║')
-  console.log('╠══════════════════════════════════════════════════════════╣')
-  const saved = Object.keys(results)
-  for (const name of saved) {
-    console.log(`║  ✅ ${name.padEnd(54)}║`)
-  }
-  console.log('╠══════════════════════════════════════════════════════════╣')
-  console.log(`║  📁 Файлы сохранены в: scripts/iiko-responses/           ║`)
+  console.log(`║  Готово. Заведений DEPARTMENT: ${String(restaurants.length).padEnd(27)}║`)
+  console.log(`║  Первое для теста: "${(deptName).slice(0, 35).padEnd(35)}"  ║`)
+  console.log('║  Файлы: scripts/iiko-responses/                          ║')
   console.log('╚══════════════════════════════════════════════════════════╝')
 }
 
-main().catch((err) => {
-  console.error('\n💥 Критическая ошибка:', err.message)
-  process.exit(1)
-})
+main().catch(err => { console.error('\n💥', err.message); process.exit(1) })

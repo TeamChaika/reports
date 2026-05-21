@@ -1,55 +1,84 @@
-export type ReportStatus = 'draft' | 'submitted' | 'verified'
-export type ReportSource = 'web_form' | 'telegram' | 'xlsx'
+// Types aligned with Supabase DB schema (migrations 20260521000002)
+
+export type ReportStatus = 'draft' | 'submitted' | 'reviewed' | 'approved'
+export type ReportSource = 'web' | 'telegram'
 export type UserRole = 'manager' | 'accountant' | 'founder' | 'admin'
 
 export interface DailyReport {
   id: string
   establishmentId: string
   businessDate: string
-  shift: 'morning' | 'evening' | 'full' | null
-  formConfigVersion: number
-  revenueTotal: number | null
-  revenueMarket: number | null
-  cash: number | null
-  card: number | null
-  prepaymentsTotal: number | null
-  expensesTotal: number | null
-  submittedToAccounting: number | null
   status: ReportStatus
-  source: ReportSource | null
+  source: ReportSource
   submittedBy: string | null
   submittedAt: string | null
+  reviewedBy: string | null
+  reviewedAt: string | null
+  notes: string | null
+  // Revenue (mirrors DB columns)
+  revenueCash: number
+  revenueCard: number
+  revenueOther: number
+  revenueTotal: number  // generated: cash + card + other
+  cashStart: number | null
+  cashEnd: number | null
+  // iiko reconciliation
+  iikoTotal: number | null
+  iikoSyncedAt: string | null
+  iikoDiff: number  // generated: revenue_total - coalesce(iiko_total, 0)
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ReportItem {
+  id: string
+  reportId: string
+  payType: string
+  amount: number
   createdAt: string
 }
 
 export interface ReportExpense {
   id: string
   reportId: string
-  position: number | null
-  amount: number
+  category: string
   description: string | null
-  employeeId: string | null
-  isVerified: boolean
+  amount: number
+  createdAt: string
 }
 
 export interface ReportPrepayment {
   id: string
   reportId: string
+  employeeId: string | null
+  employeeName: string
   amount: number
-  description: string | null
-  eventDate: string | null
+  createdAt: string
 }
 
 export interface Establishment {
   id: string
+  iikoDepaertmentId: string | null
   name: string
-  formConfig: EstablishmentFormConfig
-  formConfigVersion: number
+  code: string | null
+  telegramChatId: number | null
+  isActive: boolean
+  config: EstablishmentConfig
   createdAt: string
 }
 
-export interface EstablishmentFormConfig {
-  prepayments: boolean
-  tableware: boolean
-  cancellations: boolean
+export interface EstablishmentConfig {
+  prepayments?: boolean
+  expenses?: boolean
+  cashTracking?: boolean
+}
+
+export interface Profile {
+  id: string
+  fullName: string | null
+  role: UserRole
+  telegramId: number | null
+  isActive: boolean
+  createdAt: string
+  updatedAt: string
 }

@@ -1,28 +1,47 @@
-import { createMD5 } from 'crypto'
+import { createHash } from 'crypto'
 
-interface IikoConfig {
+export interface IikoConfig {
   baseUrl: string
   login: string
-  passwordMd5: string
+  password: string
+}
+
+function sha1(str: string): string {
+  return createHash('sha1').update(str).digest('hex')
 }
 
 async function authenticate(config: IikoConfig): Promise<string> {
-  const url = `${config.baseUrl}/resto/api/auth?login=${encodeURIComponent(config.login)}&pass=${config.passwordMd5}`
-  const res = await fetch(url)
+  const url = `${config.baseUrl}/resto/api/auth?login=${encodeURIComponent(config.login)}&pass=${sha1(config.password)}`
+  const res = await fetch(url, { signal: AbortSignal.timeout(10_000) })
   if (!res.ok) throw new Error(`iiko auth failed: ${res.status}`)
-  const key = await res.text()
-  if (!key || key.includes('<')) throw new Error('iiko auth returned invalid key')
-  return key.trim()
+  const key = (await res.text()).trim()
+  if (!key || key.startsWith('<') || key.length < 10) throw new Error('iiko auth returned invalid key')
+  return key
 }
 
-async function get<T>(config: IikoConfig, path: string): Promise<T> {
+// Returns raw response text — caller decides JSON vs XML
+export async function iikoFetch(config: IikoConfig, path: string): Promise<string> {
   const key = await authenticate(config)
-  const url = `${config.baseUrl}${path}&key=${key}`
+  const sep = path.includes('?') ? '&' : '?'
+  const res = await fetch(`${config.baseUrl}${path}${sep}key=${key}`, {
+    signal: AbortSignal.timeout(30_000),
+  })
+  if (!res.ok) throw new Error(`iiko GET failed: ${res.status} ${path}`)
+  return res.text()
+}
 
-  const res = await fetch(url, { signal: AbortSignal.timeout(30_000) })
-  if (!res.ok) throw new Error(`iiko request failed: ${res.status} ${path}`)
-
+export async function iikoPost<T>(config: IikoConfig, path: string, body: unknown): Promise<T> {
+  const key = await authenticate(config)
+  const sep = path.includes('?') ? '&' : '?'
+  const res = await fetch(`${config.baseUrl}${path}${sep}key=${key}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(60_000),
+  })
+  if (!res.ok) {
+    const err = await res.text()
+    throw new Error(`iiko POST failed: ${res.status} ${path} — ${err.slice(0, 300)}`)
+  }
   return res.json() as Promise<T>
 }
-
-export { authenticate, get, type IikoConfig }
