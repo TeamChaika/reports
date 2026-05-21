@@ -1,0 +1,23 @@
+{
+  "name": "@shift-reports/shared",
+  "version": "0.0.1",
+  "private": true,
+  "exports": {
+    "./types": "./src/types/index.ts",
+    "./schemas": "./src/schemas/index.ts",
+    "./supabase": "./src/supabase/index.ts",
+    "./ai": "./src/ai/client.ts"
+  },
+  "scripts": {
+    "type-check": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.49.4",
+    "openai": "^4.98.0",
+    "zod": "^3.24.4"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3"
+  }
+}
