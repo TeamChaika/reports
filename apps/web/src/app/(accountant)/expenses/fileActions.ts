@@ -2,20 +2,25 @@
 
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/server'
-import { getUserOrRedirect } from '@/lib/auth'
+import { getProfileOrRedirect } from '@/lib/auth'
 
 const BUCKET = 'accounting-reports'
+const ALLOWED_ROLES = ['accountant', 'admin', 'founder'] as const
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 
 export async function uploadAccountingFileAction(
   formData: FormData,
 ): Promise<{ ok: boolean; error?: string }> {
-  const user = await getUserOrRedirect()
+  const profile = await getProfileOrRedirect()
+  if (!(ALLOWED_ROLES as readonly string[]).includes(profile.role)) return { ok: false, error: 'Недостаточно прав' }
+
   const file = formData.get('file') as File | null
   const type = formData.get('type') as string | null
   const businessDate = formData.get('businessDate') as string | null
 
   if (!file || !type || !businessDate) return { ok: false, error: 'Не заполнены обязательные поля' }
   if (!['nal', 'bn'].includes(type)) return { ok: false, error: 'Неверный тип файла' }
+  if (!DATE_RE.test(businessDate)) return { ok: false, error: 'Неверный формат даты' }
   if (file.size > 10 * 1024 * 1024) return { ok: false, error: 'Файл слишком большой (макс. 10 МБ)' }
 
   const ext = file.name.split('.').pop()?.toLowerCase()
@@ -65,7 +70,7 @@ export async function uploadAccountingFileAction(
     type,
     file_name: file.name,
     storage_path: storagePath,
-    uploaded_by: user.id,
+    uploaded_by: profile.id,
   })
 
   if (dbError) {
@@ -80,7 +85,8 @@ export async function uploadAccountingFileAction(
 export async function getDownloadUrlAction(
   fileId: string,
 ): Promise<{ ok: boolean; url?: string; error?: string }> {
-  await getUserOrRedirect()
+  const profile = await getProfileOrRedirect()
+  if (!(ALLOWED_ROLES as readonly string[]).includes(profile.role)) return { ok: false, error: 'Недостаточно прав' }
   const admin = createAdminClient()
 
   const { data: file } = await admin
@@ -102,7 +108,8 @@ export async function getDownloadUrlAction(
 export async function deleteAccountingFileAction(
   fileId: string,
 ): Promise<{ ok: boolean; error?: string }> {
-  await getUserOrRedirect()
+  const profile = await getProfileOrRedirect()
+  if (!(ALLOWED_ROLES as readonly string[]).includes(profile.role)) return { ok: false, error: 'Недостаточно прав' }
   const admin = createAdminClient()
 
   const { data: file } = await admin

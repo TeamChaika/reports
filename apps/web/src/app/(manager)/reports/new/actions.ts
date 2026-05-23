@@ -46,15 +46,16 @@ export async function saveDraftAction(
   if (data.cashSubmitted !== undefined) updates['cash_submitted'] = data.cashSubmitted
   if (data.notes !== undefined) updates['notes'] = data.notes
 
-  // Compute revenue_cash / revenue_card / revenue_other from payment groups
+  // Compute revenue totals and replace report_items from payment group amounts
   if (data.payGroupAmounts) {
     const groupIds = Object.keys(data.payGroupAmounts)
     const { data: groups } = await supabase
       .from('payment_groups')
-      .select('id, maps_to')
+      .select('id, name, maps_to')
       .in('id', groupIds)
 
     const mapsTo = Object.fromEntries((groups ?? []).map(g => [g.id, g.maps_to]))
+    const groupNames = Object.fromEntries((groups ?? []).map(g => [g.id, g.name]))
     let revenueCash = 0, revenueCard = 0, revenueOther = 0
 
     for (const [id, amount] of Object.entries(data.payGroupAmounts)) {
@@ -67,6 +68,27 @@ export async function saveDraftAction(
     updates['revenue_cash'] = revenueCash
     updates['revenue_card'] = revenueCard
     updates['revenue_other'] = revenueOther
+
+    const { error: updateError } = await supabase
+      .from('daily_reports')
+      .update(updates)
+      .eq('id', reportId)
+      .eq('status', 'draft')
+
+    if (updateError) return { ok: false, error: 'Ошибка сохранения' }
+
+    const { error: deleteError } = await supabase.from('report_items').delete().eq('report_id', reportId)
+    if (deleteError) return { ok: false, error: 'Ошибка сохранения позиций' }
+
+    const items = Object.entries(data.payGroupAmounts)
+      .filter(([, amount]) => amount > 0)
+      .map(([pay_group_id, amount]) => ({ report_id: reportId, pay_group_id, pay_group: groupNames[pay_group_id] ?? '', amount }))
+
+    if (items.length > 0) {
+      const { error: insertError } = await supabase.from('report_items').insert(items)
+      if (insertError) return { ok: false, error: 'Ошибка сохранения позиций' }
+    }
+    return { ok: true }
   }
 
   const { error: updateError } = await supabase
@@ -76,15 +98,6 @@ export async function saveDraftAction(
     .eq('status', 'draft')
 
   if (updateError) return { ok: false, error: 'Ошибка сохранения' }
-
-  // Replace report_items (payment group amounts)
-  if (data.payGroupAmounts) {
-    await supabase.from('report_items').delete().eq('report_id', reportId)
-    const items = Object.entries(data.payGroupAmounts)
-      .filter(([, amount]) => amount > 0)
-      .map(([pay_group_id, amount]) => ({ report_id: reportId, pay_group_id, pay_group: '', amount }))
-    if (items.length > 0) await supabase.from('report_items').insert(items)
-  }
 
   return { ok: true }
 }

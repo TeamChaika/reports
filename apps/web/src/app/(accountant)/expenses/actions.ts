@@ -1,13 +1,16 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
-import { getUserOrRedirect } from '@/lib/auth'
+import { getProfileOrRedirect } from '@/lib/auth'
+
+const ALLOWED_ROLES = ['accountant', 'admin', 'founder'] as const
 
 export async function assignCategoryAction(
   expenseId: string,
   groupId: string,
 ): Promise<{ ok: boolean; error?: string }> {
-  await getUserOrRedirect()
+  const profile = await getProfileOrRedirect()
+  if (!(ALLOWED_ROLES as readonly string[]).includes(profile.role)) return { ok: false, error: 'Недостаточно прав' }
   const supabase = await createClient()
 
   const { error } = await supabase
@@ -22,7 +25,8 @@ export async function assignCategoryAction(
 export async function removeCategoryAction(
   expenseId: string,
 ): Promise<{ ok: boolean; error?: string }> {
-  await getUserOrRedirect()
+  const profile = await getProfileOrRedirect()
+  if (!(ALLOWED_ROLES as readonly string[]).includes(profile.role)) return { ok: false, error: 'Недостаточно прав' }
   const supabase = await createClient()
 
   const { error } = await supabase

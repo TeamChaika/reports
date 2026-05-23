@@ -1,10 +1,12 @@
-import { getUserOrRedirect } from '@/lib/auth'
+import { getProfileOrRedirect } from '@/lib/auth'
 import { createClient } from '@/lib/supabase/server'
+import { redirect } from 'next/navigation'
 import { ExpenseTable } from './ExpenseTable'
 import { AccountingFiles } from './AccountingFiles'
 
 export default async function ExpenseCategoriesPage() {
-  await getUserOrRedirect()
+  const profile = await getProfileOrRedirect()
+  if (!['accountant', 'admin', 'founder'].includes(profile.role)) redirect('/reports')
   const supabase = await createClient()
 
   const [{ data: expenses }, { data: expenseGroups }, { data: accountingFiles }] = await Promise.all([
