@@ -1,0 +1,205 @@
+/*
+ * Design Tokens — Shift Reports
+ * Single source of truth for all visual decisions.
+ *
+ * Colour space: oklch(lightness% chroma hue)
+ * Accent: steel-indigo — professional, neutral-warm, distinct from
+ * status red/green/yellow. Reads clearly on dark surfaces at all sizes.
+ *
+ * Layer hierarchy (darkest → lightest):
+ *   --color-bg            base canvas
+ *   --color-surface       cards, panels, sidebars
+ *   --color-surface-raised modals, dropdowns, popovers
+ */
+
+:root {
+  /* ------------------------------------------------------------------ */
+  /* Background layers                                                    */
+  /* ------------------------------------------------------------------ */
+  --color-bg:             oklch(11% 0.008 260);   /* #0d0f14 — deepest canvas      */
+  --color-surface:        oklch(15% 0.010 260);   /* #141720 — card / panel        */
+  --color-surface-raised: oklch(19% 0.012 260);   /* #1b1f2a — modal / dropdown    */
+  --color-surface-overlay:oklch(23% 0.013 260);   /* #22273a — hover overlay layer */
+
+  /* ------------------------------------------------------------------ */
+  /* Borders                                                              */
+  /* ------------------------------------------------------------------ */
+  --color-border:         oklch(28% 0.015 260);   /* visible divider               */
+  --color-border-subtle:  oklch(22% 0.012 260);   /* hairline separator            */
+  --color-border-focus:   oklch(62% 0.19 258);    /* accent-coloured focus ring    */
+
+  /* ------------------------------------------------------------------ */
+  /* Text                                                                 */
+  /* ------------------------------------------------------------------ */
+  --color-text:           oklch(93% 0.005 260);   /* primary — near-white          */
+  --color-text-muted:     oklch(62% 0.012 260);   /* secondary — labels, meta      */
+  --color-text-disabled:  oklch(40% 0.008 260);   /* disabled states               */
+  --color-text-inverse:   oklch(10% 0.008 260);   /* text on accent/light bg       */
+  --color-text-link:      oklch(72% 0.18 258);    /* hyperlinks                    */
+
+  /* ------------------------------------------------------------------ */
+  /* Accent — steel-indigo                                                */
+  /* Interactive: buttons, active states, highlights, focus rings.       */
+  /* Not used for status signals (those have their own semantic tokens). */
+  /* ------------------------------------------------------------------ */
+  --color-accent:         oklch(62% 0.19 258);    /* #5b7bfa approx               */
+  --color-accent-hover:   oklch(67% 0.20 258);    /* lighter on hover              */
+  --color-accent-active:  oklch(57% 0.18 258);    /* pressed / active              */
+  --color-accent-subtle:  oklch(62% 0.19 258 / 12%); /* tinted bg on selection    */
+  --color-accent-border:  oklch(62% 0.19 258 / 35%); /* accent-coloured border    */
+  --color-accent-fg:      oklch(98% 0.004 260);   /* text/icon on accent bg        */
+
+  /* ------------------------------------------------------------------ */
+  /* Status — success (positive revenue, verified reports)               */
+  /* Using blue-green, not pure green, to feel SaaS not traffic-light.   */
+  /* ------------------------------------------------------------------ */
+  --color-success:        oklch(68% 0.17 168);    /* teal-green                    */
+  --color-success-hover:  oklch(73% 0.17 168);
+  --color-success-bg:     oklch(68% 0.17 168 / 12%);
+  --color-success-border: oklch(68% 0.17 168 / 30%);
+  --color-success-fg:     oklch(98% 0.004 168);
+
+  /* ------------------------------------------------------------------ */
+  /* Status — warning (draft reports, missing data, reconciliation delta) */
+  /* Amber, not yellow — more readable on dark.                          */
+  /* ------------------------------------------------------------------ */
+  --color-warning:        oklch(75% 0.18 68);     /* warm amber                    */
+  --color-warning-hover:  oklch(80% 0.18 68);
+  --color-warning-bg:     oklch(75% 0.18 68 / 12%);
+  --color-warning-border: oklch(75% 0.18 68 / 30%);
+  --color-warning-fg:     oklch(15% 0.04 68);     /* dark text on amber bg         */
+
+  /* ------------------------------------------------------------------ */
+  /* Status — danger (errors, discrepancies, critical alerts)            */
+  /* Pure red kept only for danger — no accent contamination.            */
+  /* ------------------------------------------------------------------ */
+  --color-danger:         oklch(62% 0.22 25);     /* crimson-red                   */
+  --color-danger-hover:   oklch(67% 0.22 25);
+  --color-danger-bg:      oklch(62% 0.22 25 / 12%);
+  --color-danger-border:  oklch(62% 0.22 25 / 30%);
+  --color-danger-fg:      oklch(98% 0.004 25);
+
+  /* ------------------------------------------------------------------ */
+  /* Status — info (sync logs, neutral notices)                          */
+  /* Sky-blue, lighter than accent to avoid confusion with actions.      */
+  /* ------------------------------------------------------------------ */
+  --color-info:           oklch(72% 0.16 220);    /* sky blue                      */
+  --color-info-hover:     oklch(77% 0.16 220);
+  --color-info-bg:        oklch(72% 0.16 220 / 12%);
+  --color-info-border:    oklch(72% 0.16 220 / 30%);
+  --color-info-fg:        oklch(98% 0.004 220);
+
+  /* ------------------------------------------------------------------ */
+  /* Neutral (badge-neutral, placeholder chips)                          */
+  /* ------------------------------------------------------------------ */
+  --color-neutral:        oklch(50% 0.010 260);
+  --color-neutral-bg:     oklch(50% 0.010 260 / 15%);
+  --color-neutral-border: oklch(50% 0.010 260 / 30%);
+  --color-neutral-fg:     oklch(80% 0.008 260);
+
+  /* ------------------------------------------------------------------ */
+  /* Border radius                                                        */
+  /* ------------------------------------------------------------------ */
+  --radius-xs:  2px;
+  --radius-sm:  4px;
+  --radius-md:  8px;
+  --radius-lg:  12px;
+  --radius-xl:  16px;
+  --radius-2xl: 24px;
+  --radius-full: 9999px;
+
+  /* ------------------------------------------------------------------ */
+  /* Shadows — coloured with the bg hue to feel native, not photographic */
+  /* ------------------------------------------------------------------ */
+  --shadow-xs: 0 1px 2px oklch(5% 0.012 260 / 50%);
+  --shadow-sm: 0 1px 3px oklch(5% 0.012 260 / 60%),
+               0 1px 2px oklch(5% 0.012 260 / 40%);
+  --shadow-md: 0 4px 6px  oklch(5% 0.012 260 / 50%),
+               0 2px 4px  oklch(5% 0.012 260 / 35%);
+  --shadow-lg: 0 10px 15px oklch(5% 0.012 260 / 50%),
+               0 4px  6px  oklch(5% 0.012 260 / 35%);
+  --shadow-xl: 0 20px 25px oklch(5% 0.012 260 / 55%),
+               0 8px  10px oklch(5% 0.012 260 / 40%);
+
+  /* Accent glow — used sparingly on primary CTA buttons */
+  --shadow-accent-glow: 0 0 0 1px var(--color-accent-border),
+                        0 4px 16px oklch(62% 0.19 258 / 25%);
+
+  /* ------------------------------------------------------------------ */
+  /* Typography                                                           */
+  /* ------------------------------------------------------------------ */
+  /* Stack: Geist (loaded in layout.tsx) → system-ui fallback           */
+  --font-sans:  'Geist', 'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono:  'Geist Mono', 'Fira Code', 'Cascadia Code', ui-monospace,
+                'Menlo', monospace;
+
+  /* Fluid type scale (clamp: min-size, preferred, max-size)             */
+  --text-xs:   clamp(0.6875rem, 0.65rem + 0.19vw, 0.75rem);   /* 11–12px  */
+  --text-sm:   clamp(0.8125rem, 0.78rem + 0.16vw, 0.875rem);  /* 13–14px  */
+  --text-base: clamp(0.9375rem, 0.90rem + 0.19vw, 1rem);      /* 15–16px  */
+  --text-md:   clamp(1rem,      0.95rem + 0.25vw, 1.125rem);  /* 16–18px  */
+  --text-lg:   clamp(1.125rem,  1.05rem + 0.38vw, 1.25rem);   /* 18–20px  */
+  --text-xl:   clamp(1.25rem,   1.10rem + 0.75vw, 1.5rem);    /* 20–24px  */
+  --text-2xl:  clamp(1.5rem,    1.25rem + 1.25vw, 2rem);      /* 24–32px  */
+  --text-3xl:  clamp(1.875rem,  1.50rem + 1.88vw, 2.5rem);    /* 30–40px  */
+
+  --leading-tight:  1.25;
+  --leading-snug:   1.375;
+  --leading-normal: 1.5;
+  --leading-relaxed:1.625;
+
+  --tracking-tight:  -0.025em;
+  --tracking-normal: 0em;
+  --tracking-wide:   0.025em;
+  --tracking-widest: 0.08em;
+
+  --font-weight-normal:   400;
+  --font-weight-medium:   500;
+  --font-weight-semibold: 600;
+  --font-weight-bold:     700;
+
+  /* ------------------------------------------------------------------ */
+  /* Spacing scale                                                        */
+  /* ------------------------------------------------------------------ */
+  --space-px:  1px;
+  --space-0-5: 2px;
+  --space-1:   4px;
+  --space-1-5: 6px;
+  --space-2:   8px;
+  --space-2-5: 10px;
+  --space-3:   12px;
+  --space-4:   16px;
+  --space-5:   20px;
+  --space-6:   24px;
+  --space-8:   32px;
+  --space-10:  40px;
+  --space-12:  48px;
+  --space-16:  64px;
+  --space-20:  80px;
+
+  /* ------------------------------------------------------------------ */
+  /* Motion                                                               */
+  /* ------------------------------------------------------------------ */
+  --duration-instant: 0ms;
+  --duration-fast:    100ms;
+  --duration-normal:  200ms;
+  --duration-slow:    350ms;
+  --duration-lazy:    500ms;
+
+  --ease-out:       cubic-bezier(0.0, 0.0, 0.2, 1.0);
+  --ease-in:        cubic-bezier(0.4, 0.0, 1.0, 1.0);
+  --ease-in-out:    cubic-bezier(0.4, 0.0, 0.2, 1.0);
+  --ease-out-expo:  cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring:    cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* ------------------------------------------------------------------ */
+  /* Z-index ladder                                                       */
+  /* ------------------------------------------------------------------ */
+  --z-base:    0;
+  --z-raised:  10;
+  --z-sticky:  100;
+  --z-overlay: 200;
+  --z-modal:   300;
+  --z-toast:   400;
+  --z-tooltip: 500;
+}

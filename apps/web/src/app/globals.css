@@ -1,23 +1,130 @@
-@import "tailwindcss";
+/*
+ * globals.css — Shift Reports (apps/web)
+ *
+ * Import order matters:
+ *  1. tokens   — CSS custom properties, no output rules
+ *  2. global   — HTML element resets and base styles
+ *  3. components — reusable utility classes
+ *  4. Tailwind directives — utilities generated from tailwind.config.ts
+ *
+ * Tailwind's JIT compiler reads these directives and produces
+ * utility classes that reference the same CSS custom properties
+ * wired in tailwind.config.ts via the `var(--color-*)` pattern.
+ */
 
-:root {
-  --color-bg: oklch(98% 0 0);
-  --color-surface: oklch(100% 0 0);
-  --color-border: oklch(90% 0 0);
-  --color-text: oklch(15% 0 0);
-  --color-text-muted: oklch(50% 0 0);
-  --color-accent: oklch(55% 0.18 250);
-  --color-accent-hover: oklch(48% 0.18 250);
-  --color-danger: oklch(55% 0.2 25);
-  --color-success: oklch(55% 0.15 145);
-  --color-warning: oklch(65% 0.17 75);
+/* -------------------------------------------------------------------- */
+/* Design system layers                                                   */
+/* -------------------------------------------------------------------- */
 
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 16px;
+@import '../styles/tokens.css';
+@import '../styles/global.css';
+@import '../styles/components.css';
 
-  --shadow-card: 0 1px 3px oklch(0% 0 0 / 8%), 0 1px 2px oklch(0% 0 0 / 4%);
+/* Wait — @import must precede @tailwind directives.                     */
+/* When using Next.js with postcss-import, these @imports are inlined     */
+/* at build time, placing the custom properties before Tailwind output.  */
+
+/* -------------------------------------------------------------------- */
+/* Tailwind CSS directives                                                */
+/* -------------------------------------------------------------------- */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* -------------------------------------------------------------------- */
+/* Tailwind base layer overrides                                          */
+/* -------------------------------------------------------------------- */
+
+/*
+ * Tailwind's preflight reset conflicts with some of our global.css
+ * rules. We add a @layer base block to resolve priority correctly.
+ * These declarations run AFTER preflight but BEFORE component utilities.
+ */
+
+@layer base {
+  :root {
+    /* Ensure Tailwind's color-scheme is aligned */
+    color-scheme: dark;
+  }
+
+  /* Tailwind preflight zeroes out heading sizes; restore our scale */
+  h1 { font-size: var(--text-2xl); font-weight: var(--font-weight-semibold); }
+  h2 { font-size: var(--text-xl);  font-weight: var(--font-weight-semibold); }
+  h3 { font-size: var(--text-lg);  font-weight: var(--font-weight-semibold); }
+  h4 { font-size: var(--text-md);  font-weight: var(--font-weight-semibold); }
 }
 
-* { box-sizing: border-box; }
-body { background: var(--color-bg); color: var(--color-text); font-family: system-ui, sans-serif; }
+/* -------------------------------------------------------------------- */
+/* Page-level layout helpers                                              */
+/* -------------------------------------------------------------------- */
+
+@layer utilities {
+  /*
+   * Container sizing used across page layouts.
+   * Intentionally not using Tailwind's built-in container to maintain
+   * full control over breakpoints and padding behaviour.
+   */
+  .page-container {
+    width: 100%;
+    max-width: 1280px;
+    margin-inline: auto;
+    padding-inline: var(--space-4);
+  }
+
+  @media (min-width: 768px) {
+    .page-container {
+      padding-inline: var(--space-6);
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .page-container {
+      padding-inline: var(--space-8);
+    }
+  }
+
+  /* Sidebar + content shell used by manager / accountant / admin layouts */
+  .app-shell {
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    grid-template-rows: auto 1fr;
+    min-height: 100dvh;
+  }
+
+  @media (max-width: 1023px) {
+    .app-shell {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  /* Consistent section spacing within page bodies */
+  .section-gap {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-6);
+  }
+
+  /* Truncate to one line with ellipsis */
+  .truncate-1 {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  /* Currency value — tabular nums, right-aligned */
+  .currency {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+    font-weight: var(--font-weight-medium);
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  /* Muted meta text used for dates, IDs, row counts */
+  .meta-text {
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+    font-weight: var(--font-weight-normal);
+  }
+}
