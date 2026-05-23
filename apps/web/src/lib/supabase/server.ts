@@ -1,5 +1,6 @@
 import 'server-only'
 import { createServerClient } from '@supabase/ssr'
+import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 
 export async function createClient() {
@@ -24,18 +25,21 @@ export async function createClient() {
   )
 }
 
-// Service-role client for Server Actions — bypasses RLS
-export async function createAdminClient() {
-  const cookieStore = await cookies()
-  return createServerClient(
+// Service-role client for Server Actions — bypasses RLS.
+// Uses createClient from @supabase/supabase-js (not @supabase/ssr) so that
+// the service_role JWT is sent as-is, which Supabase recognises as a bypass
+// for Row Level Security.  @supabase/ssr's createServerClient wraps auth in
+// a cookie session layer that can cause the role to resolve as anon instead
+// of service_role, triggering RLS violations on insert/delete.
+export function createAdminClient() {
+  return createSupabaseClient(
     process.env['NEXT_PUBLIC_SUPABASE_URL']!,
     process.env['SUPABASE_SERVICE_ROLE_KEY']!,
     {
-      cookies: {
-        getAll: () => cookieStore.getAll(),
-        setAll: () => {},
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
       },
-      auth: { persistSession: false },
     },
   )
 }

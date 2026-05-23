@@ -1,12 +1,13 @@
 import { getUserOrRedirect } from '@/lib/auth'
 import { createClient } from '@/lib/supabase/server'
 import { ExpenseTable } from './ExpenseTable'
+import { AccountingFiles } from './AccountingFiles'
 
 export default async function ExpenseCategoriesPage() {
   await getUserOrRedirect()
   const supabase = await createClient()
 
-  const [{ data: expenses }, { data: expenseGroups }] = await Promise.all([
+  const [{ data: expenses }, { data: expenseGroups }, { data: accountingFiles }] = await Promise.all([
     supabase
       .from('report_expenses')
       .select(`
@@ -24,6 +25,11 @@ export default async function ExpenseCategoriesPage() {
       .select('id, name')
       .eq('is_active', true)
       .order('sort_order'),
+    supabase
+      .from('accounting_files')
+      .select('id, business_date, type, file_name, created_at')
+      .order('business_date', { ascending: false })
+      .limit(90),
   ])
 
   const uncategorized = (expenses ?? []).filter(e => !e.group_id).length
@@ -89,6 +95,16 @@ export default async function ExpenseCategoriesPage() {
         </div>
 
         <ExpenseTable expenses={rows} expenseGroups={expenseGroups ?? []} />
+
+        <AccountingFiles
+          files={(accountingFiles ?? []) as {
+            id: string
+            business_date: string
+            type: 'nal' | 'bn'
+            file_name: string
+            created_at: string
+          }[]}
+        />
       </div>
     </main>
   )
