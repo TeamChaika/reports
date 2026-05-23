@@ -12,9 +12,21 @@ type AccountingFile = {
 }
 
 const TYPE_LABEL = { nal: 'Нал', bn: 'БН' }
-const TYPE_COLOR = {
-  nal: { bg: 'oklch(93% 0.06 145)', color: 'oklch(38% 0.15 145)', border: 'oklch(78% 0.12 145)' },
-  bn: { bg: 'oklch(93% 0.06 250)', color: 'oklch(38% 0.15 250)', border: 'oklch(78% 0.12 250)' },
+
+// Type colours defined via semantic tokens — these are dark-mode-safe
+const TYPE_STYLE = {
+  nal: {
+    badgeClass: 'badge badge-success',
+    buttonBg: 'var(--color-success-bg)',
+    buttonBorder: 'var(--color-success-border)',
+    buttonColor: 'var(--color-success)',
+  },
+  bn: {
+    badgeClass: 'badge badge-info',
+    buttonBg: 'var(--color-info-bg)',
+    buttonBorder: 'var(--color-info-border)',
+    buttonColor: 'var(--color-info)',
+  },
 }
 
 function formatDate(iso: string) {
@@ -79,7 +91,7 @@ export function AccountingFiles({ files }: { files: AccountingFile[] }) {
         className="px-5 py-3"
         style={{ background: 'var(--color-surface)', borderBottom: '1px solid var(--color-border)' }}
       >
-        <h2 className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
+        <h2 className="text-sm font-semibold text-text">
           Архив бухгалтерских отчётов
         </h2>
       </div>
@@ -89,28 +101,23 @@ export function AccountingFiles({ files }: { files: AccountingFile[] }) {
         className="px-5 py-4 flex flex-wrap items-end gap-4"
         style={{ background: 'var(--color-bg)', borderBottom: '1px solid var(--color-border)' }}
       >
-        <div>
-          <label className="block text-xs mb-1" style={{ color: 'var(--color-text-muted)' }}>
+        <div className="form-group">
+          <label className="label" style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>
             Дата отчёта
           </label>
           <input
             type="date"
             value={uploadDate}
             onChange={e => setUploadDate(e.target.value)}
-            className="px-3 py-1.5 rounded-lg text-sm"
-            style={{
-              border: '1px solid var(--color-border)',
-              background: 'var(--color-surface)',
-              color: 'var(--color-text)',
-            }}
+            className="input input--sm"
           />
         </div>
 
         {(['nal', 'bn'] as const).map(type => {
-          const c = TYPE_COLOR[type]
+          const s = TYPE_STYLE[type]
           return (
-            <div key={type}>
-              <label className="block text-xs mb-1" style={{ color: 'var(--color-text-muted)' }}>
+            <div key={type} className="form-group">
+              <label className="label" style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>
                 {TYPE_LABEL[type]}-отчёт (xlsx)
               </label>
               <input
@@ -127,12 +134,12 @@ export function AccountingFiles({ files }: { files: AccountingFile[] }) {
               <button
                 onClick={() => (type === 'nal' ? nalRef : bnRef).current?.click()}
                 disabled={isPending}
-                className="px-4 py-1.5 rounded-lg text-xs font-medium"
+                className="btn btn--sm"
                 style={{
-                  background: c.bg,
-                  color: c.color,
-                  border: `1px solid ${c.border}`,
-                  opacity: isPending ? 0.6 : 1,
+                  background: s.buttonBg,
+                  borderColor: s.buttonBorder,
+                  color: s.buttonColor,
+                  border: `1px solid ${s.buttonBorder}`,
                 }}
               >
                 {isPending ? 'Загрузка…' : `↑ Загрузить ${TYPE_LABEL[type]}`}
@@ -148,8 +155,11 @@ export function AccountingFiles({ files }: { files: AccountingFile[] }) {
 
       {/* Archive table */}
       {dates.length === 0 ? (
-        <div className="px-5 py-8 text-center" style={{ background: 'var(--color-bg)' }}>
-          <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
+        <div
+          className="px-5 py-8 text-center"
+          style={{ background: 'var(--color-bg)' }}
+        >
+          <p className="text-sm text-text-muted">
             Файлы ещё не загружены
           </p>
         </div>
@@ -160,50 +170,48 @@ export function AccountingFiles({ files }: { files: AccountingFile[] }) {
             return (
               <div
                 key={date}
-                className="px-5 py-3 flex items-center gap-4"
-                style={{ borderTop: i > 0 ? '1px solid var(--color-border)' : undefined }}
+                className="px-5 py-3 flex items-center gap-4 transition-colors"
+                style={{
+                  borderTop: i > 0 ? '1px solid var(--color-border-subtle)' : undefined,
+                }}
               >
-                <span
-                  className="text-sm font-medium shrink-0 w-24"
-                  style={{ color: 'var(--color-text)' }}
-                >
+                <span className="text-sm font-medium shrink-0 w-24 text-text">
                   {formatDate(date)}
                 </span>
 
                 {(['nal', 'bn'] as const).map(type => {
                   const file = row[type]
-                  const c = TYPE_COLOR[type]
+                  const s = TYPE_STYLE[type]
                   return (
                     <div key={type} className="flex items-center gap-2 w-64">
                       {file ? (
                         <>
                           <span
-                            className="text-xs font-medium px-2 py-1 rounded-md flex-1 truncate"
-                            style={{ background: c.bg, color: c.color, border: `1px solid ${c.border}` }}
+                            className={`${s.badgeClass} flex-1 max-w-full truncate transition-colors`}
                             title={file.file_name}
                           >
                             {TYPE_LABEL[type]}: {file.file_name}
                           </span>
                           <button
                             onClick={() => handleDownload(file.id, file.file_name)}
-                            className="text-xs shrink-0"
-                            style={{ color: 'var(--color-accent)' }}
+                            className="btn btn-ghost btn--sm btn--icon shrink-0"
                             title="Скачать"
+                            aria-label={`Скачать ${file.file_name}`}
                           >
                             ↓
                           </button>
                           <button
                             onClick={() => handleDelete(file.id)}
                             disabled={isPending}
-                            className="text-xs shrink-0"
-                            style={{ color: 'var(--color-text-muted)' }}
+                            className="btn btn-danger btn--sm btn--icon shrink-0"
                             title="Удалить"
+                            aria-label={`Удалить ${file.file_name}`}
                           >
                             ✕
                           </button>
                         </>
                       ) : (
-                        <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
+                        <span className="text-xs text-text-muted">
                           {TYPE_LABEL[type]}: —
                         </span>
                       )}

@@ -62,31 +62,41 @@ export function ExpenseTable({ expenses, expenseGroups }: Props) {
     <div className="flex flex-col gap-4">
       {/* Filters + stats */}
       <div className="flex items-center justify-between">
-        <div className="flex gap-1 p-1 rounded-lg" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}>
+        <div
+          className="flex gap-1 rounded-lg"
+          style={{
+            background: 'var(--color-surface)',
+            border: '1px solid var(--color-border)',
+            padding: 'var(--space-1)',
+          }}
+        >
           {(['uncategorized', 'all'] as const).map(f => (
             <button
               key={f}
               onClick={() => setFilter(f)}
-              className="text-xs font-medium px-3 py-1.5 rounded-md transition-colors"
-              style={{
-                background: filter === f ? 'var(--color-accent)' : 'transparent',
-                color: filter === f ? 'white' : 'var(--color-text-muted)',
-              }}
+              className={filter === f ? 'btn btn-primary btn--sm' : 'btn btn-ghost btn--sm'}
             >
               {f === 'uncategorized'
-                ? `Без категории ${uncategorizedCount > 0 ? `(${uncategorizedCount})` : ''}`
+                ? `Без категории${uncategorizedCount > 0 ? ` (${uncategorizedCount})` : ''}`
                 : 'Все расходы'}
             </button>
           ))}
         </div>
-        <span className="text-sm font-medium" style={{ color: 'var(--color-text-muted)' }}>
+        <span className="text-sm font-medium text-text-muted tabular-nums">
           {visible.length} позиций · {totalAmount.toLocaleString('ru')} ₽
         </span>
       </div>
 
       {visible.length === 0 && (
-        <div className="p-8 text-center rounded-xl" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}>
-          <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
+        <div
+          className="rounded-xl text-center"
+          style={{
+            background: 'var(--color-surface)',
+            border: '1px solid var(--color-border)',
+            padding: 'var(--space-8)',
+          }}
+        >
+          <p className="text-sm text-text-muted">
             {filter === 'uncategorized' ? '✓ Все расходы категоризированы' : 'Расходов нет'}
           </p>
         </div>
@@ -95,42 +105,46 @@ export function ExpenseTable({ expenses, expenseGroups }: Props) {
       {Object.entries(grouped).map(([key, { label, items }]) => {
         const groupTotal = items.reduce((s, e) => s + e.amount, 0)
         return (
-          <section key={key} className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--color-border)' }}>
+          <section
+            key={key}
+            className="rounded-xl overflow-hidden"
+            style={{ border: '1px solid var(--color-border)' }}
+          >
             {/* Group header */}
             <div
               className="px-4 py-2.5 flex items-center justify-between"
               style={{ background: 'var(--color-surface)', borderBottom: '1px solid var(--color-border)' }}
             >
-              <span className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>{label}</span>
-              <span className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
+              <span className="text-sm font-semibold text-text">{label}</span>
+              <span className="text-sm tabular-nums text-text-muted">
                 {groupTotal.toLocaleString('ru')} ₽
               </span>
             </div>
 
-            {/* Expenses */}
+            {/* Expense rows */}
             <div style={{ background: 'var(--color-bg)' }}>
               {items.map((expense, i) => (
                 <div
                   key={expense.id}
-                  className="px-4 py-3 flex items-center gap-3"
+                  className="table-row-hover px-4 py-3 flex items-center gap-3"
                   style={{
-                    borderTop: i > 0 ? '1px solid var(--color-border)' : undefined,
+                    borderTop: i > 0 ? '1px solid var(--color-border-subtle)' : undefined,
                   }}
                 >
                   {/* Name + approver */}
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium" style={{ color: 'var(--color-text)' }}>
+                    <p className="text-sm font-medium text-text">
                       {expense.name}
                     </p>
                     {expense.approver_name && (
-                      <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-muted)' }}>
+                      <p className="text-xs mt-0.5 text-text-muted">
                         Согл. {expense.approver_name}
                       </p>
                     )}
                   </div>
 
                   {/* Amount */}
-                  <span className="text-sm font-semibold shrink-0 w-24 text-right" style={{ color: 'var(--color-text)' }}>
+                  <span className="text-sm font-semibold shrink-0 w-24 text-right tabular-nums text-text">
                     {expense.amount.toLocaleString('ru')} ₽
                   </span>
 
@@ -138,18 +152,15 @@ export function ExpenseTable({ expenses, expenseGroups }: Props) {
                   <div className="shrink-0 w-52">
                     {expense.group_id ? (
                       <div className="flex items-center gap-2">
-                        <span
-                          className="text-xs font-medium px-2 py-1 rounded-md flex-1 text-center"
-                          style={{ background: 'oklch(65% 0.18 145 / 15%)', color: 'oklch(45% 0.18 145)' }}
-                        >
+                        <span className="badge badge-success flex-1 justify-center text-center">
                           {groupName(expense.group_id)}
                         </span>
                         <button
                           onClick={() => handleRemove(expense.id)}
                           disabled={isPending}
-                          className="text-xs shrink-0"
-                          style={{ color: 'var(--color-text-muted)' }}
+                          className="btn btn-ghost btn--sm btn--icon shrink-0"
                           title="Снять категорию"
+                          aria-label="Снять категорию"
                         >
                           ✕
                         </button>
@@ -159,12 +170,8 @@ export function ExpenseTable({ expenses, expenseGroups }: Props) {
                         defaultValue=""
                         onChange={e => { if (e.target.value) handleAssign(expense.id, e.target.value) }}
                         disabled={isPending}
-                        className="w-full px-2 py-1.5 rounded-md text-xs"
-                        style={{
-                          border: '1px solid oklch(65% 0.18 60 / 60%)',
-                          background: 'oklch(65% 0.18 60 / 8%)',
-                          color: 'var(--color-text)',
-                        }}
+                        className="input input--select input--sm"
+                        style={{ borderColor: 'var(--color-warning-border)', color: 'var(--color-text)' }}
                       >
                         <option value="">— назначить категорию —</option>
                         {expenseGroups.map(g => (

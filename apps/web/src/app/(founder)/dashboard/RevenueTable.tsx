@@ -27,8 +27,9 @@ function fmtDiff(diff: number | null, available: boolean) {
   return (diff > 0 ? '+' : '') + fmt(Math.round(diff))
 }
 
+// Shared column classes using design token utilities
 const COL = 'px-4 py-3 text-right tabular-nums text-sm'
-const COL_HEAD = 'px-4 py-2.5 text-xs font-medium text-right'
+const COL_HEAD = 'px-4 py-2.5 text-xs font-medium text-right uppercase tracking-widest'
 
 export function RevenueTable({ rows }: { rows: RevenueRow[] }) {
   if (rows.length === 0) return null
@@ -58,7 +59,7 @@ export function RevenueTable({ rows }: { rows: RevenueRow[] }) {
         className="px-5 py-3"
         style={{ background: 'var(--color-surface)', borderBottom: '1px solid var(--color-border)' }}
       >
-        <h2 className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
+        <h2 className="text-sm font-semibold text-text">
           Выручка по заведениям
         </h2>
       </div>
@@ -68,7 +69,7 @@ export function RevenueTable({ rows }: { rows: RevenueRow[] }) {
           <thead>
             <tr style={{ borderBottom: '1px solid var(--color-border)' }}>
               <th
-                className="px-4 py-2.5 text-xs font-medium text-left"
+                className="px-4 py-2.5 text-xs font-medium text-left uppercase tracking-widest"
                 style={{ color: 'var(--color-text-muted)' }}
               >
                 Заведение
@@ -98,11 +99,11 @@ export function RevenueTable({ rows }: { rows: RevenueRow[] }) {
               return (
                 <tr
                   key={row.id}
-                  style={{ borderTop: i > 0 ? '1px solid var(--color-border)' : undefined }}
+                  className="table-row-hover"
+                  style={{ borderTop: i > 0 ? '1px solid var(--color-border-subtle)' : undefined }}
                 >
                   <td
-                    className="px-4 py-3 text-sm font-medium"
-                    style={{ color: 'var(--color-text)' }}
+                    className="px-4 py-3 text-sm font-medium text-text"
                   >
                     {row.name}
                   </td>
@@ -115,10 +116,7 @@ export function RevenueTable({ rows }: { rows: RevenueRow[] }) {
                   <td className={COL} style={{ color: 'var(--color-text-muted)' }}>
                     {row.other > 0 ? fmt(row.other) : '—'}
                   </td>
-                  <td
-                    className={COL + ' font-semibold'}
-                    style={{ color: 'var(--color-text)' }}
-                  >
+                  <td className={`${COL} font-semibold text-text`}>
                     {fmt(row.total)}
                   </td>
                   {hasIiko && (
@@ -127,7 +125,7 @@ export function RevenueTable({ rows }: { rows: RevenueRow[] }) {
                         {row.iikoAvailable && row.iikoTotal !== null ? fmt(row.iikoTotal) : '—'}
                       </td>
                       <td
-                        className={COL + ' font-medium'}
+                        className={`${COL} font-medium`}
                         style={{ color: diff !== null ? diffColor(diff) : 'var(--color-text-muted)' }}
                       >
                         {fmtDiff(diff, row.iikoAvailable)}
@@ -152,33 +150,32 @@ export function RevenueTable({ rows }: { rows: RevenueRow[] }) {
               }}
             >
               <td
-                className="px-4 py-3 text-xs font-semibold uppercase tracking-wider"
-                style={{ color: 'var(--color-text-muted)' }}
+                className="px-4 py-3 text-xs font-semibold uppercase tracking-widest text-text-muted"
               >
                 Итого
               </td>
-              <td className={COL + ' font-semibold'} style={{ color: 'var(--color-text)' }}>
+              <td className={`${COL} font-semibold text-text`}>
                 {fmt(totals.cash)}
               </td>
-              <td className={COL + ' font-semibold'} style={{ color: 'var(--color-text)' }}>
+              <td className={`${COL} font-semibold text-text`}>
                 {fmt(totals.card)}
               </td>
-              <td className={COL + ' font-semibold'} style={{ color: 'var(--color-text)' }}>
+              <td className={`${COL} font-semibold text-text`}>
                 {fmt(totals.other)}
               </td>
               <td
-                className={COL + ' font-bold text-base'}
+                className={`${COL} font-bold text-base`}
                 style={{ color: 'var(--color-accent)' }}
               >
                 {fmt(totals.total)}
               </td>
               {hasIiko && (
                 <>
-                  <td className={COL + ' font-semibold'} style={{ color: 'var(--color-text)' }}>
+                  <td className={`${COL} font-semibold text-text`}>
                     {totals.iikoTotal !== null ? fmt(totals.iikoTotal) : '—'}
                   </td>
                   <td
-                    className={COL + ' font-semibold'}
+                    className={`${COL} font-semibold`}
                     style={{
                       color: totals.iikoDiff !== null
                         ? diffColor(totals.iikoDiff)
@@ -190,7 +187,7 @@ export function RevenueTable({ rows }: { rows: RevenueRow[] }) {
                 </>
               )}
               {hasCashSubmitted && (
-                <td className={COL + ' font-semibold'} style={{ color: 'var(--color-text)' }}>
+                <td className={`${COL} font-semibold text-text`}>
                   {totals.cashSubmitted !== null ? fmt(totals.cashSubmitted) : '—'}
                 </td>
               )}

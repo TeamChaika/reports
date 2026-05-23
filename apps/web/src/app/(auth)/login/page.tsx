@@ -1,60 +1,104 @@
 import { loginAction } from './actions'
 
-export default function LoginPage({
+export default async function LoginPage({
   searchParams,
 }: {
   searchParams: Promise<{ error?: string }>
 }) {
+  const params = await searchParams
+  const error = params.error
+
   return (
-    <main className="min-h-screen flex items-center justify-center p-4" style={{ background: 'var(--color-bg)' }}>
-      <div
-        className="w-full max-w-sm p-8 rounded-2xl"
-        style={{ background: 'var(--color-surface)', boxShadow: 'var(--shadow-card)', border: '1px solid var(--color-border)' }}
-      >
-        <h1 className="text-2xl font-bold mb-1" style={{ color: 'var(--color-text)' }}>Shift Reports</h1>
-        <p className="text-sm mb-8" style={{ color: 'var(--color-text-muted)' }}>Войдите чтобы продолжить</p>
-
-        <form action={loginAction} className="flex flex-col gap-4">
-          <div className="flex flex-col gap-1">
-            <label className="text-sm font-medium" style={{ color: 'var(--color-text)' }}>Email</label>
-            <input
-              type="email"
-              name="email"
-              required
-              autoComplete="email"
-              className="w-full px-3 py-2 rounded-lg text-sm outline-none transition-colors"
-              style={{
-                border: '1px solid var(--color-border)',
-                background: 'var(--color-bg)',
-                color: 'var(--color-text)',
-              }}
-            />
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <label className="text-sm font-medium" style={{ color: 'var(--color-text)' }}>Пароль</label>
-            <input
-              type="password"
-              name="password"
-              required
-              autoComplete="current-password"
-              className="w-full px-3 py-2 rounded-lg text-sm outline-none"
-              style={{
-                border: '1px solid var(--color-border)',
-                background: 'var(--color-bg)',
-                color: 'var(--color-text)',
-              }}
-            />
-          </div>
-
-          <button
-            type="submit"
-            className="w-full py-2.5 rounded-lg text-sm font-medium text-white transition-colors"
-            style={{ background: 'var(--color-accent)' }}
+    <main
+      className="min-h-screen flex items-center justify-center p-4"
+      style={{ background: 'var(--color-bg)' }}
+    >
+      <div className="w-full max-w-sm">
+        {/* Logo mark + app name */}
+        <div className="flex flex-col items-center mb-8">
+          <div
+            className="flex items-center justify-center w-10 h-10 rounded-lg mb-4 font-bold text-sm"
+            style={{
+              background: 'var(--color-accent-subtle)',
+              border: '1px solid var(--color-accent-border)',
+              color: 'var(--color-accent)',
+              fontFamily: 'var(--font-sans)',
+              letterSpacing: 'var(--tracking-wide)',
+            }}
           >
-            Войти
-          </button>
-        </form>
+            SR
+          </div>
+          <h1
+            className="text-xl font-semibold tracking-tight"
+            style={{ color: 'var(--color-text)' }}
+          >
+            Shift Reports
+          </h1>
+          <p className="text-sm mt-1" style={{ color: 'var(--color-text-muted)' }}>
+            Войдите чтобы продолжить
+          </p>
+        </div>
+
+        {/* Card */}
+        <div
+          className="rounded-xl p-8"
+          style={{
+            background: 'var(--color-surface)',
+            border: '1px solid var(--color-border)',
+            boxShadow: 'var(--shadow-md)',
+          }}
+        >
+          {/* Error banner */}
+          {error && (
+            <div
+              className="alert alert-danger mb-5"
+              role="alert"
+            >
+              {error === 'invalid'
+                ? 'Неверный email или пароль'
+                : error === 'missing'
+                ? 'Введите email и пароль'
+                : 'Ошибка входа. Попробуйте ещё раз.'}
+            </div>
+          )}
+
+          <form action={loginAction} className="flex flex-col gap-4">
+            <div className="form-group">
+              <label htmlFor="email" className="label">
+                Email
+              </label>
+              <input
+                id="email"
+                type="email"
+                name="email"
+                required
+                autoComplete="email"
+                className="input"
+              />
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="password" className="label">
+                Пароль
+              </label>
+              <input
+                id="password"
+                type="password"
+                name="password"
+                required
+                autoComplete="current-password"
+                className="input"
+              />
+            </div>
+
+            <button
+              type="submit"
+              className="btn btn-primary btn--block btn--lg mt-2"
+            >
+              Войти
+            </button>
+          </form>
+        </div>
       </div>
     </main>
   )

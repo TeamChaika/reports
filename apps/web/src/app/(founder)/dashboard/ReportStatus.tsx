@@ -6,39 +6,21 @@ type EstablishmentStatus = {
   reportCount: number
 }
 
-const STATUS_MAP: Record<string, { label: string; bg: string; color: string; border: string }> = {
-  draft: {
-    label: 'Черновик',
-    bg: 'oklch(92% 0 0)',
-    color: 'oklch(40% 0 0)',
-    border: 'oklch(75% 0 0)',
-  },
-  submitted: {
-    label: 'Отправлен',
-    bg: 'oklch(93% 0.06 250)',
-    color: 'oklch(45% 0.18 250)',
-    border: 'oklch(75% 0.12 250)',
-  },
-  reviewed: {
-    label: 'Проверен',
-    bg: 'oklch(93% 0.07 75)',
-    color: 'oklch(48% 0.17 75)',
-    border: 'oklch(78% 0.12 75)',
-  },
-  approved: {
-    label: 'Принят',
-    bg: 'oklch(93% 0.07 145)',
-    color: 'oklch(42% 0.15 145)',
-    border: 'oklch(75% 0.12 145)',
-  },
+// Map report statuses to semantic badge classes from the design system
+const STATUS_BADGE_CLASS: Record<string, string> = {
+  submitted: 'badge badge-info',
+  reviewed:  'badge badge-warning',
+  approved:  'badge badge-success',
 }
 
-const MISSING = {
-  label: 'Не сдан',
-  bg: 'oklch(93% 0.04 25)',
-  color: 'oklch(45% 0.15 25)',
-  border: 'oklch(78% 0.1 25)',
+const STATUS_LABEL: Record<string, string> = {
+  submitted: 'Отправлен',
+  reviewed:  'Проверен',
+  approved:  'Принят',
 }
+
+const MISSING_BADGE_CLASS = 'badge badge-danger'
+const MISSING_LABEL = 'Не сдан'
 
 export function ReportStatus({
   establishments,
@@ -48,7 +30,6 @@ export function ReportStatus({
   isSingleDay: boolean
 }) {
   const withReport = establishments.filter(e => e.hasReport && e.status !== 'draft')
-  const withoutReport = establishments.filter(e => !e.hasReport || e.status === 'draft')
 
   return (
     <section
@@ -59,36 +40,37 @@ export function ReportStatus({
         className="px-5 py-3 flex items-center gap-3"
         style={{ borderBottom: '1px solid var(--color-border)' }}
       >
-        <h2 className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
+        <h2 className="text-sm font-semibold text-text">
           Статус отчётов
         </h2>
-        <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
+        <span className="text-xs text-text-muted">
           {withReport.length} из {establishments.length} заведений сдали отчёт
         </span>
       </div>
 
       <div className="p-4 flex flex-wrap gap-2">
         {establishments.map(est => {
-          const info = (est.status && est.status !== 'draft' ? STATUS_MAP[est.status] : null) ?? MISSING
+          const isMissing = !est.hasReport || est.status === 'draft'
+          const badgeClass = isMissing
+            ? MISSING_BADGE_CLASS
+            : (STATUS_BADGE_CLASS[est.status ?? ''] ?? 'badge badge-neutral')
+          const label = isMissing
+            ? MISSING_LABEL
+            : (STATUS_LABEL[est.status ?? ''] ?? est.status ?? '—')
 
           return (
             <div
               key={est.id}
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium"
-              style={{ background: info.bg, border: `1px solid ${info.border}` }}
+              className={`${badgeClass} transition-colors`}
+              style={{ height: 'auto', padding: 'var(--space-1-5) var(--space-3)', borderRadius: 'var(--radius-md)' }}
             >
-              <span style={{ color: info.color }}>{est.name}</span>
+              <span>{est.name}</span>
               <span
-                className="px-1.5 py-0.5 rounded text-xs"
-                style={{
-                  background: 'rgba(0,0,0,0.06)',
-                  color: info.color,
-                  opacity: 0.85,
-                }}
+                className="ml-1.5 opacity-80 text-xs"
               >
                 {!isSingleDay && est.reportCount > 1
                   ? `${est.reportCount} отч.`
-                  : info.label}
+                  : label}
               </span>
             </div>
           )

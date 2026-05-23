@@ -33,18 +33,18 @@ export function DateFilter({ from, to }: { from: string; to: string }) {
   return (
     <div className="flex items-center gap-2 flex-wrap justify-end">
       <div
-        className="flex gap-1 p-1 rounded-lg"
-        style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
+        className="flex gap-1 rounded-lg"
+        style={{
+          background: 'var(--color-surface)',
+          border: '1px solid var(--color-border)',
+          padding: 'var(--space-1)',
+        }}
       >
         {PRESETS.map((p, i) => (
           <button
             key={p.label}
             onClick={() => apply(p.from(), p.to())}
-            className="text-xs font-medium px-3 py-1.5 rounded-md transition-colors"
-            style={{
-              background: activePreset === i ? 'var(--color-accent)' : 'transparent',
-              color: activePreset === i ? 'white' : 'var(--color-text-muted)',
-            }}
+            className={activePreset === i ? 'btn btn-secondary btn--sm' : 'btn btn-ghost btn--sm'}
           >
             {p.label}
           </button>
@@ -54,12 +54,8 @@ export function DateFilter({ from, to }: { from: string; to: string }) {
         type="date"
         value={from === to ? from : ''}
         onChange={e => { if (e.target.value) apply(e.target.value, e.target.value) }}
-        className="text-xs px-3 py-1.5 rounded-lg"
-        style={{
-          border: '1px solid var(--color-border)',
-          background: 'var(--color-surface)',
-          color: 'var(--color-text)',
-        }}
+        className="input input--sm"
+        style={{ width: 'auto' }}
       />
     </div>
   )

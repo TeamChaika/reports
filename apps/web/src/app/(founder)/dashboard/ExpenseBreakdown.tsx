@@ -42,15 +42,18 @@ export function ExpenseBreakdown({
         className="px-5 py-3 flex items-baseline gap-3"
         style={{ background: 'var(--color-surface)', borderBottom: '1px solid var(--color-border)' }}
       >
-        <h2 className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
+        <h2 className="text-sm font-semibold text-text">
           Расходы по категориям
         </h2>
-        <span className="text-sm font-bold" style={{ color: 'var(--color-danger)' }}>
+        <span className="text-sm font-bold tabular-nums" style={{ color: 'var(--color-danger)' }}>
           {fmt(total)} ₽
         </span>
       </div>
 
-      <div className="p-5 flex flex-col gap-3" style={{ background: 'var(--color-bg)' }}>
+      <div
+        className="flex flex-col gap-3"
+        style={{ background: 'var(--color-bg)', padding: 'var(--space-5)' }}
+      >
         {rows.map(row => {
           const barPct = (row.total / maxTotal) * 100
           const sharePct = total > 0 ? (row.total / total) * 100 : 0
@@ -58,6 +61,7 @@ export function ExpenseBreakdown({
 
           return (
             <div key={row.id} className="flex items-center gap-4">
+              {/* Category name */}
               <div
                 className="text-xs shrink-0 w-40 truncate"
                 style={{ color: isUncategorized ? 'var(--color-warning)' : 'var(--color-text)' }}
@@ -66,9 +70,11 @@ export function ExpenseBreakdown({
                 {row.name}
               </div>
 
+              {/* Bar track */}
               <div
-                className="flex-1 h-5 rounded-md overflow-hidden flex items-center"
+                className="flex-1 rounded-md overflow-hidden flex items-center"
                 style={{
+                  height: 'var(--space-5)',
                   background: 'var(--color-surface)',
                   border: '1px solid var(--color-border)',
                 }}
@@ -81,28 +87,28 @@ export function ExpenseBreakdown({
                       ? 'var(--color-warning)'
                       : 'var(--color-accent)',
                     opacity: 0.65,
-                    transition: 'width 0.3s ease',
+                    transition: 'width var(--duration-slow) var(--ease-out-expo)',
                   }}
                 />
               </div>
 
+              {/* Amount */}
               <div
-                className="text-xs tabular-nums font-medium text-right shrink-0 w-24"
-                style={{ color: 'var(--color-text)' }}
+                className="text-xs tabular-nums font-medium text-right shrink-0 w-24 text-text"
               >
                 {fmt(row.total)} ₽
               </div>
 
+              {/* Share % */}
               <div
-                className="text-xs tabular-nums text-right shrink-0 w-10"
-                style={{ color: 'var(--color-text-muted)' }}
+                className="text-xs tabular-nums text-right shrink-0 w-10 text-text-muted"
               >
                 {sharePct.toFixed(0)}%
               </div>
 
+              {/* Count */}
               <div
-                className="text-xs tabular-nums text-right shrink-0 w-16"
-                style={{ color: 'var(--color-text-muted)' }}
+                className="text-xs tabular-nums text-right shrink-0 w-16 text-text-muted"
               >
                 {row.count} поз.
               </div>
