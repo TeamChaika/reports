@@ -37,9 +37,13 @@ supabase/.temp
 .idea
 .vscode/settings.json
 
+# Claude Code (commit shared settings, ignore personal overrides)
+.claude/settings.local.json
+
 # Temp files
 .npmrc.tmp
 
 # iiko API response samples (contain real data)
 scripts/iiko-responses/
 scripts/*.pdf
+apps/web/.env

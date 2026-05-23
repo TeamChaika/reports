@@ -1,16 +1,19 @@
 /*
  * globals.css — Shift Reports (apps/web)
  *
- * Import order matters:
- *  1. tokens   — CSS custom properties, no output rules
- *  2. global   — HTML element resets and base styles
- *  3. components — reusable utility classes
- *  4. Tailwind directives — utilities generated from tailwind.config.ts
- *
- * Tailwind's JIT compiler reads these directives and produces
- * utility classes that reference the same CSS custom properties
- * wired in tailwind.config.ts via the `var(--color-*)` pattern.
+ * Tailwind v4: single @import replaces the three @tailwind directives.
+ * Import order:
+ *  1. tailwindcss  — base reset, default utilities, preflight
+ *  2. tokens       — CSS custom properties (design tokens)
+ *  3. global       — HTML element resets that layer on top of preflight
+ *  4. components   — reusable utility classes (.btn, .card, .badge, etc.)
  */
+
+/* -------------------------------------------------------------------- */
+/* Tailwind v4                                                            */
+/* -------------------------------------------------------------------- */
+
+@import "tailwindcss";
 
 /* -------------------------------------------------------------------- */
 /* Design system layers                                                   */
@@ -20,35 +23,114 @@
 @import '../styles/global.css';
 @import '../styles/components.css';
 
-/* Wait — @import must precede @tailwind directives.                     */
-/* When using Next.js with postcss-import, these @imports are inlined     */
-/* at build time, placing the custom properties before Tailwind output.  */
-
 /* -------------------------------------------------------------------- */
-/* Tailwind CSS directives                                                */
-/* -------------------------------------------------------------------- */
-
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-/* -------------------------------------------------------------------- */
-/* Tailwind base layer overrides                                          */
+/* Custom Tailwind theme — maps our design tokens to utility classes     */
 /* -------------------------------------------------------------------- */
 
 /*
- * Tailwind's preflight reset conflicts with some of our global.css
- * rules. We add a @layer base block to resolve priority correctly.
- * These declarations run AFTER preflight but BEFORE component utilities.
+ * @theme inline: Tailwind reads these as CSS custom properties that
+ * already exist (from tokens.css above) and generates utility classes
+ * from them without creating duplicate CSS variables.
+ *
+ * Generated utilities:
+ *   --color-bg            → bg-bg, text-bg, border-bg
+ *   --color-surface       → bg-surface
+ *   --color-accent        → bg-accent, text-accent, border-accent
+ *   etc.
  */
+
+@theme inline {
+  /* Background layers */
+  --color-bg:              var(--color-bg);
+  --color-surface:         var(--color-surface);
+  --color-surface-raised:  var(--color-surface-raised);
+  --color-surface-overlay: var(--color-surface-overlay);
+
+  /* Borders */
+  --color-border:          var(--color-border);
+  --color-border-subtle:   var(--color-border-subtle);
+  --color-border-focus:    var(--color-border-focus);
+
+  /* Text */
+  --color-text:            var(--color-text);
+  --color-text-muted:      var(--color-text-muted);
+  --color-text-disabled:   var(--color-text-disabled);
+  --color-text-inverse:    var(--color-text-inverse);
+  --color-text-link:       var(--color-text-link);
+
+  /* Accent */
+  --color-accent:          var(--color-accent);
+  --color-accent-hover:    var(--color-accent-hover);
+  --color-accent-active:   var(--color-accent-active);
+  --color-accent-subtle:   var(--color-accent-subtle);
+  --color-accent-border:   var(--color-accent-border);
+  --color-accent-fg:       var(--color-accent-fg);
+
+  /* Success */
+  --color-success:         var(--color-success);
+  --color-success-hover:   var(--color-success-hover);
+  --color-success-bg:      var(--color-success-bg);
+  --color-success-border:  var(--color-success-border);
+  --color-success-fg:      var(--color-success-fg);
+
+  /* Warning */
+  --color-warning:         var(--color-warning);
+  --color-warning-hover:   var(--color-warning-hover);
+  --color-warning-bg:      var(--color-warning-bg);
+  --color-warning-border:  var(--color-warning-border);
+  --color-warning-fg:      var(--color-warning-fg);
+
+  /* Danger */
+  --color-danger:          var(--color-danger);
+  --color-danger-hover:    var(--color-danger-hover);
+  --color-danger-bg:       var(--color-danger-bg);
+  --color-danger-border:   var(--color-danger-border);
+  --color-danger-fg:       var(--color-danger-fg);
+
+  /* Info */
+  --color-info:            var(--color-info);
+  --color-info-hover:      var(--color-info-hover);
+  --color-info-bg:         var(--color-info-bg);
+  --color-info-border:     var(--color-info-border);
+  --color-info-fg:         var(--color-info-fg);
+
+  /* Neutral */
+  --color-neutral:         var(--color-neutral);
+  --color-neutral-bg:      var(--color-neutral-bg);
+  --color-neutral-border:  var(--color-neutral-border);
+  --color-neutral-fg:      var(--color-neutral-fg);
+
+  /* Border radius */
+  --radius-xs:   var(--radius-xs);
+  --radius-sm:   var(--radius-sm);
+  --radius-md:   var(--radius-md);
+  --radius-lg:   var(--radius-lg);
+  --radius-xl:   var(--radius-xl);
+  --radius-2xl:  var(--radius-2xl);
+  --radius-full: var(--radius-full);
+
+  /* Shadows */
+  --shadow-xs:          var(--shadow-xs);
+  --shadow-sm:          var(--shadow-sm);
+  --shadow-md:          var(--shadow-md);
+  --shadow-lg:          var(--shadow-lg);
+  --shadow-xl:          var(--shadow-xl);
+  --shadow-accent-glow: var(--shadow-accent-glow);
+
+  /* Font families */
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+}
+
+/* -------------------------------------------------------------------- */
+/* Heading scale (Tailwind v4 preflight resets heading sizes)            */
+/* -------------------------------------------------------------------- */
 
 @layer base {
   :root {
-    /* Ensure Tailwind's color-scheme is aligned */
     color-scheme: dark;
   }
 
-  /* Tailwind preflight zeroes out heading sizes; restore our scale */
   h1 { font-size: var(--text-2xl); font-weight: var(--font-weight-semibold); }
   h2 { font-size: var(--text-xl);  font-weight: var(--font-weight-semibold); }
   h3 { font-size: var(--text-lg);  font-weight: var(--font-weight-semibold); }
@@ -60,11 +142,6 @@
 /* -------------------------------------------------------------------- */
 
 @layer utilities {
-  /*
-   * Container sizing used across page layouts.
-   * Intentionally not using Tailwind's built-in container to maintain
-   * full control over breakpoints and padding behaviour.
-   */
   .page-container {
     width: 100%;
     max-width: 1280px;
@@ -84,7 +161,6 @@
     }
   }
 
-  /* Sidebar + content shell used by manager / accountant / admin layouts */
   .app-shell {
     display: grid;
     grid-template-columns: 240px 1fr;
@@ -98,21 +174,18 @@
     }
   }
 
-  /* Consistent section spacing within page bodies */
   .section-gap {
     display: flex;
     flex-direction: column;
     gap: var(--space-6);
   }
 
-  /* Truncate to one line with ellipsis */
   .truncate-1 {
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
   }
 
-  /* Currency value — tabular nums, right-aligned */
   .currency {
     font-variant-numeric: tabular-nums;
     font-feature-settings: "tnum";
@@ -121,7 +194,6 @@
     white-space: nowrap;
   }
 
-  /* Muted meta text used for dates, IDs, row counts */
   .meta-text {
     font-size: var(--text-xs);
     color: var(--color-text-muted);
