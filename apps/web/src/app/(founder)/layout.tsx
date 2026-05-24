@@ -35,6 +35,14 @@ export default function FounderLayout({ children }: { children: React.ReactNode 
           >
             Дашборд
           </Link>
+
+          <Link
+            href="/employees"
+            className="text-sm transition-colors"
+            style={{ color: 'var(--color-text-muted)' }}
+          >
+            Сотрудники
+          </Link>
         </div>
 
         {/* Right: logout */}
