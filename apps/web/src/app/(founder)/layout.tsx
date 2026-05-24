@@ -51,6 +51,14 @@ export default function FounderLayout({ children }: { children: React.ReactNode 
           >
             Заведения
           </Link>
+
+          <Link
+            href="/expenses"
+            className="text-sm transition-colors"
+            style={{ color: 'var(--color-text-muted)' }}
+          >
+            Бухгалтерия
+          </Link>
         </div>
 
         {/* Right: logout */}
