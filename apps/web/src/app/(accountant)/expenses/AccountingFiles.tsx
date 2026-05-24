@@ -2,6 +2,7 @@
 
 import { useState, useTransition, useRef } from 'react'
 import { uploadAccountingFileAction, getDownloadUrlAction, deleteAccountingFileAction } from './fileActions'
+import { XlsxViewer } from './XlsxViewer'
 
 type AccountingFile = {
   id: string
@@ -192,6 +193,7 @@ export function AccountingFiles({ files }: { files: AccountingFile[] }) {
                           >
                             {TYPE_LABEL[type]}: {file.file_name}
                           </span>
+                          <XlsxViewer fileId={file.id} fileName={file.file_name} />
                           <button
                             onClick={() => handleDownload(file.id, file.file_name)}
                             className="btn btn-ghost btn--sm btn--icon shrink-0"
