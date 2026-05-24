@@ -23,7 +23,7 @@ type Expense = {
   group_id: string | null
   approver_name: string | null
   description: string | null
-  added_by: string | null
+  added_by_name: string | null
 }
 
 interface Props {
@@ -36,6 +36,7 @@ interface Props {
   reportId?: string
   initialValues?: Partial<ReportFormValues>
   initialExpenses?: Expense[]
+  currentUserName?: string | null
 }
 
 export function ReportForm({
@@ -48,6 +49,7 @@ export function ReportForm({
   reportId: initialReportId,
   initialValues,
   initialExpenses = [],
+  currentUserName,
 }: Props) {
   const defaultPayGroupAmounts = Object.fromEntries(paymentGroups.map(g => [g.id, 0]))
 
@@ -123,7 +125,7 @@ export function ReportForm({
           group_id: snapshot.groupId ?? null,
           approver_name: approver?.short_name ?? null,
           description: snapshot.description ?? null,
-          added_by: null,
+          added_by_name: currentUserName ?? null,
         },
       })
       const result = await addExpenseAction(initialReportId, snapshot)
@@ -371,6 +373,7 @@ export function ReportForm({
                 <p className="text-xs mt-0.5 text-text-muted">
                   {e.approver_name && <>Согл. <span className="font-medium">{e.approver_name}</span></>}
                   {e.group_id && <> · {groupName(e.group_id)}</>}
+                  {e.added_by_name && <> · {e.added_by_name.toLowerCase()}</>}
                 </p>
               </div>
               <span className="text-sm font-medium shrink-0 tabular-nums text-text">

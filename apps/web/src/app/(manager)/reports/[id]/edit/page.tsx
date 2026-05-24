@@ -81,6 +81,22 @@ export default async function EditReportPage({ params }: { params: Promise<{ id:
     notes: report.notes ?? '',
   }
 
+  const addedByIds = [...new Set(
+    (report.report_expenses ?? []).map(e => e.added_by).filter(Boolean) as string[]
+  )]
+  const { data: expenseProfiles } = addedByIds.length > 0
+    ? await supabase.from('profiles').select('id, full_name').in('id', addedByIds)
+    : { data: [] }
+  const profileNames: Record<string, string> = Object.fromEntries(
+    (expenseProfiles ?? []).map(p => [p.id, p.full_name ?? ''])
+  )
+
+  const { data: currentProfile } = await supabase
+    .from('profiles')
+    .select('full_name')
+    .eq('id', user.id)
+    .single()
+
   const initialExpenses = (report.report_expenses ?? []).map(e => ({
     id: e.id,
     name: e.name,
@@ -88,7 +104,7 @@ export default async function EditReportPage({ params }: { params: Promise<{ id:
     group_id: e.group_id,
     approver_name: e.approver_name,
     description: e.description,
-    added_by: e.added_by,
+    added_by_name: e.added_by ? (profileNames[e.added_by] ?? null) : null,
   }))
 
   return (
@@ -107,6 +123,7 @@ export default async function EditReportPage({ params }: { params: Promise<{ id:
           reportId={id}
           initialValues={initialValues}
           initialExpenses={initialExpenses}
+          currentUserName={currentProfile?.full_name ?? null}
         />
       </div>
     </main>
