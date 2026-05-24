@@ -80,6 +80,8 @@ export function ReportForm({
     0,
   )
 
+  const cashGroupId = paymentGroups.find(g => g.code === 'cash')?.id
+
   // ─── Collaborative expenses ───────────────────────────────────────────────
   const [optimisticExpenses, applyOptimistic] = useOptimistic(
     initialExpenses,
@@ -156,6 +158,13 @@ export function ReportForm({
   const expensesTotal = optimisticExpenses.reduce((s, e) => s + e.amount, 0)
   const groupName = (groupId: string | null) => expenseGroups.find(g => g.id === groupId)?.name ?? '—'
 
+  // Auto-calculate cash submitted: cash revenue minus expenses
+  useEffect(() => {
+    if (!cashGroupId) return
+    const cashAmount = (payGroupAmounts?.[cashGroupId] as number) || 0
+    form.setValue('cashSubmitted', Math.max(0, cashAmount - expensesTotal))
+  }, [cashGroupId, payGroupAmounts, expensesTotal, form])
+
   return (
     <form onSubmit={handleCreateAndSubmit} className="flex flex-col gap-4">
       {/* Establishment + Date */}
@@ -228,9 +237,16 @@ export function ReportForm({
       >
         <h2 className="text-sm font-semibold mb-3 text-text">Касса</h2>
         <div className="form-group">
-          <label className="label" style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>
-            Сдано наличных в бухгалтерию
-          </label>
+          <div className="flex items-center justify-between mb-1">
+            <label className="label" style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>
+              Сдано наличных в бухгалтерию
+            </label>
+            {cashGroupId && (
+              <span className="text-xs" style={{ color: 'var(--color-text-disabled)' }}>
+                Наличные − расходы
+              </span>
+            )}
+          </div>
           <input
             type="number"
             min="0"
