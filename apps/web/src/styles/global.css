@@ -2,19 +2,11 @@
  * Global base styles — Shift Reports
  * Applies foundational resets and theme defaults to HTML primitives.
  * All colour values reference tokens.css custom properties.
+ *
+ * NOTE: The *, *::before, *::after { margin:0; padding:0 } reset is
+ * intentionally omitted — Tailwind preflight already emits it inside
+ * @layer base, so adding it here (unlayered) would override utilities.
  */
-
-/* -------------------------------------------------------------------- */
-/* Box-sizing reset                                                       */
-/* -------------------------------------------------------------------- */
-
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
 
 /* -------------------------------------------------------------------- */
 /* Document root                                                          */
