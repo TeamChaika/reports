@@ -140,25 +140,22 @@ export default function CreateEmployeeForm({ establishments }: Props) {
               </div>
 
               <div className="form-group sm:col-span-2">
-                <label htmlFor="emp-establishment" className="label label--required">
-                  Заведение
-                </label>
-                <select
-                  id="emp-establishment"
-                  name="establishment_id"
-                  className="input input--select"
-                  required
-                  defaultValue=""
-                >
-                  <option value="" disabled>
-                    Выберите заведение
-                  </option>
+                <span className="label label--required">Заведения</span>
+                <div className="flex flex-col gap-2 mt-1">
                   {establishments.map((est) => (
-                    <option key={est.id} value={est.id}>
-                      {est.name}
-                    </option>
+                    <label key={est.id} className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        name="establishment_ids"
+                        value={est.id}
+                        className="checkbox"
+                      />
+                      <span className="text-sm" style={{ color: 'var(--color-text)' }}>
+                        {est.name}
+                      </span>
+                    </label>
                   ))}
-                </select>
+                </div>
               </div>
             </div>
 

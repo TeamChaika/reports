@@ -11,7 +11,7 @@ const createEmployeeSchema = z.object({
   email: z.string().email('Некорректный e-mail'),
   password: z.string().min(8, 'Пароль должен содержать минимум 8 символов'),
   role: z.enum(['manager', 'accountant'], { message: 'Некорректная роль' }),
-  establishment_id: z.string().uuid('Некорректный идентификатор заведения'),
+  establishment_ids: z.array(z.string().uuid()).min(1, 'Выберите хотя бы одно заведение'),
 })
 
 async function requireFounder() {
@@ -33,7 +33,7 @@ export async function createEmployeeAction(
     email: formData.get('email'),
     password: formData.get('password'),
     role: formData.get('role'),
-    establishment_id: formData.get('establishment_id'),
+    establishment_ids: formData.getAll('establishment_ids'),
   }
 
   const parsed = createEmployeeSchema.safeParse(raw)
@@ -42,7 +42,7 @@ export async function createEmployeeAction(
     return { ok: false, error: firstError?.message ?? 'Некорректные данные' }
   }
 
-  const { full_name, email, password, role, establishment_id } = parsed.data
+  const { full_name, email, password, role, establishment_ids } = parsed.data
 
   const adminClient = createAdminClient()
 
@@ -73,7 +73,7 @@ export async function createEmployeeAction(
 
   const { error: estError } = await adminClient
     .from('establishment_users')
-    .insert({ user_id: userId, establishment_id })
+    .insert(establishment_ids.map(eid => ({ user_id: userId, establishment_id: eid })))
 
   if (estError) {
     await adminClient.from('profiles').delete().eq('id', userId)
