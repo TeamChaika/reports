@@ -1,6 +1,7 @@
 'use server'
 
 import { redirect } from 'next/navigation'
+import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { getUserOrRedirect } from '@/lib/auth'
 import { reportFormSchema, reportDraftPatchSchema, addExpenseSchema } from '@shift-reports/shared'
@@ -130,11 +131,13 @@ export async function addExpenseAction(
     .single()
 
   if (error || !row) return { ok: false, error: 'Не удалось добавить расход' }
+  revalidatePath(`/reports/${reportId}/edit`)
   return { ok: true, id: row.id }
 }
 
 export async function removeExpenseAction(
   expenseId: string,
+  reportId: string,
 ): Promise<{ ok: boolean; error?: string }> {
   await getUserOrRedirect()
   const supabase = await createClient()
@@ -145,6 +148,7 @@ export async function removeExpenseAction(
     .eq('id', expenseId)
 
   if (error) return { ok: false, error: 'Не удалось удалить расход' }
+  revalidatePath(`/reports/${reportId}/edit`)
   return { ok: true }
 }
 

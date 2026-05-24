@@ -109,7 +109,11 @@ export function ReportForm({
     const approver = approvers.find(a => a.id === expenseForm.approverId)
     const snapshot = { ...expenseForm }
 
-    startTransition(() => {
+    setShowExpenseForm(false)
+    setExpenseError('')
+    setExpenseForm({ name: '', amount: 0, approverId: undefined })
+
+    startTransition(async () => {
       applyOptimistic({
         type: 'add',
         item: {
@@ -122,27 +126,24 @@ export function ReportForm({
           added_by: null,
         },
       })
+      const result = await addExpenseAction(initialReportId, snapshot)
+      if (!result.ok) {
+        applyOptimistic({ type: 'remove', id: tempId })
+        setExpenseError(result.error ?? 'Ошибка')
+        setShowExpenseForm(true)
+      }
     })
-
-    setShowExpenseForm(false)
-    setExpenseError('')
-    setExpenseForm({ name: '', amount: 0, approverId: undefined })
-
-    const result = await addExpenseAction(initialReportId, snapshot)
-    if (!result.ok) {
-      startTransition(() => applyOptimistic({ type: 'remove', id: tempId }))
-      setExpenseError(result.error ?? 'Ошибка')
-      setShowExpenseForm(true)
-    }
   }, [initialReportId, expenseForm, approvers, applyOptimistic, startTransition])
 
   const handleRemoveExpense = useCallback(async (id: string) => {
     if (!initialReportId) return
-    startTransition(() => applyOptimistic({ type: 'remove', id }))
-    const result = await removeExpenseAction(id)
-    if (!result.ok) {
-      window.location.reload()
-    }
+    startTransition(async () => {
+      applyOptimistic({ type: 'remove', id })
+      const result = await removeExpenseAction(id, initialReportId)
+      if (!result.ok) {
+        window.location.reload()
+      }
+    })
   }, [initialReportId, applyOptimistic, startTransition])
 
   const handleCreateAndSubmit = form.handleSubmit(async (values) => {
