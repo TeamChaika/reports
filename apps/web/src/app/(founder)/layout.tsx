@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { logoutAction } from '@/app/(auth)/login/actions'
+import FounderMobileMenu from './FounderMobileMenu'
 
 export default function FounderLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -8,7 +9,7 @@ export default function FounderLayout({ children }: { children: React.ReactNode 
         className="sticky top-0 z-sticky h-14 px-4 flex items-center justify-between border-b border-border"
         style={{ backgroundColor: 'oklch(15% 0.010 260 / 80%)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)' }}
       >
-        {/* Left: logo + nav links */}
+        {/* Left: logo + desktop nav links */}
         <div className="flex items-center gap-5">
           <div className="flex items-center gap-3">
             <div
@@ -26,47 +27,35 @@ export default function FounderLayout({ children }: { children: React.ReactNode 
             </span>
           </div>
 
-          <span style={{ color: 'var(--color-border)' }} aria-hidden="true">·</span>
-
-          <Link
-            href="/dashboard"
-            className="text-sm transition-colors"
-            style={{ color: 'var(--color-text-muted)' }}
-          >
-            Дашборд
-          </Link>
-
-          <Link
-            href="/employees"
-            className="text-sm transition-colors"
-            style={{ color: 'var(--color-text-muted)' }}
-          >
-            Сотрудники
-          </Link>
-
-          <Link
-            href="/establishments"
-            className="text-sm transition-colors"
-            style={{ color: 'var(--color-text-muted)' }}
-          >
-            Заведения
-          </Link>
-
-          <Link
-            href="/expenses"
-            className="text-sm transition-colors"
-            style={{ color: 'var(--color-text-muted)' }}
-          >
-            Бухгалтерия
-          </Link>
+          <div className="hidden sm:flex items-center gap-5">
+            <span style={{ color: 'var(--color-border)' }} aria-hidden="true">·</span>
+            {[
+              { href: '/dashboard', label: 'Дашборд' },
+              { href: '/employees', label: 'Сотрудники' },
+              { href: '/establishments', label: 'Заведения' },
+              { href: '/expenses', label: 'Бухгалтерия' },
+            ].map(link => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className="text-sm transition-colors"
+                style={{ color: 'var(--color-text-muted)' }}
+              >
+                {link.label}
+              </Link>
+            ))}
+          </div>
         </div>
 
-        {/* Right: logout */}
-        <form action={logoutAction}>
-          <button type="submit" className="btn btn-ghost btn--sm">
-            Выйти
-          </button>
-        </form>
+        {/* Right: logout (desktop) + hamburger (mobile) */}
+        <div className="flex items-center gap-2">
+          <form action={logoutAction} className="hidden sm:block">
+            <button type="submit" className="btn btn-ghost btn--sm">
+              Выйти
+            </button>
+          </form>
+          <FounderMobileMenu />
+        </div>
       </nav>
       {children}
     </>

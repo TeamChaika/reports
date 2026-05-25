@@ -48,11 +48,11 @@ function EstablishmentTable({ rows }: { rows: Row[] }) {
 
   return (
     <div
-      className="rounded-xl overflow-hidden"
+      className="rounded-xl overflow-x-auto"
       style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
     >
-      <div className="overflow-x-auto">
-        <table className="data-table">
+      <div>
+        <table className="data-table" style={{ minWidth: '480px' }}>
           <thead>
             <tr>
               <th>Название</th>
