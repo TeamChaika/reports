@@ -19,8 +19,9 @@ export async function syncOlap(
   fromDate?: string,
   toDate?: string,
 ): Promise<number> {
-  const to = toDate ?? dateStr(new Date())
   const from = fromDate ?? dateStr(new Date(Date.now() - 7 * 86_400_000))
+  // iiko OLAP requires to > from, so always request one day ahead to include today's open shift
+  const to = toDate ?? dateStr(new Date(Date.now() + 86_400_000))
 
   const response = await iikoPost<OlapRow[] | { data: OlapRow[] }>(
     config,
