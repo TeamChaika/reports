@@ -64,7 +64,7 @@ await runOlapSync()
 // Reference data: every 6 hours
 setInterval(runReferenceSync, 6 * 60 * 60 * 1000)
 
-// OLAP cache: every hour
-setInterval(runOlapSync, 60 * 60 * 1000)
+// OLAP cache: every 5 minutes
+setInterval(runOlapSync, 5 * 60 * 1000)
 
-console.log('Worker running — reference sync every 6h, OLAP sync every 1h')
+console.log('Worker running — reference sync every 6h, OLAP sync every 5m')
