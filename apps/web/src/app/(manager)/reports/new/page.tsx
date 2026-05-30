@@ -2,7 +2,7 @@ import { getUserOrRedirect } from '@/lib/auth'
 import { createClient } from '@/lib/supabase/server'
 import { ReportForm } from '@/components/report-form/ReportForm'
 import { createDraftAction } from './actions'
-import { format } from 'date-fns'
+import { format, subDays } from 'date-fns'
 
 export default async function NewReportPage() {
   const user = await getUserOrRedirect()
@@ -39,7 +39,7 @@ export default async function NewReportPage() {
   const estList: EstRow[] = (establishments ?? [])
     .flatMap(e => (e.establishments ? [e.establishments as unknown as EstRow] : []))
 
-  const today = format(new Date(), 'yyyy-MM-dd')
+  const today = format(subDays(new Date(), 1), 'yyyy-MM-dd')
 
   return (
     <main className="min-h-screen" style={{ background: 'var(--color-bg)' }}>
