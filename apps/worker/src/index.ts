@@ -3,6 +3,7 @@ import { syncEmployees } from './iiko/sync-employees'
 import { syncStores } from './iiko/sync-stores'
 import { syncProducts } from './iiko/sync-products'
 import { syncOlap } from './iiko/sync-olap'
+import { syncRevenue } from './iiko/sync-revenue'
 import { syncIikoTotals } from './iiko/sync-iiko-totals'
 import type { IikoConfig } from './iiko/client'
 
@@ -41,6 +42,12 @@ async function runOlapSync() {
     console.log(`  ✓ olap: ${count} rows`)
   } catch (err) {
     console.error(`  ✗ olap:`, err instanceof Error ? err.message : err)
+  }
+  try {
+    const count = await syncRevenue()
+    console.log(`  ✓ revenue: ${count} reports synced`)
+  } catch (err) {
+    console.error(`  ✗ revenue:`, err instanceof Error ? err.message : err)
   }
   try {
     const count = await syncIikoTotals()
