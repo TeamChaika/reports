@@ -3,6 +3,7 @@ import { syncEmployees } from './iiko/sync-employees'
 import { syncStores } from './iiko/sync-stores'
 import { syncProducts } from './iiko/sync-products'
 import { syncOlap } from './iiko/sync-olap'
+import { syncIikoTotals } from './iiko/sync-iiko-totals'
 import type { IikoConfig } from './iiko/client'
 
 const config: IikoConfig = {
@@ -40,6 +41,12 @@ async function runOlapSync() {
     console.log(`  ✓ olap: ${count} rows`)
   } catch (err) {
     console.error(`  ✗ olap:`, err instanceof Error ? err.message : err)
+  }
+  try {
+    const count = await syncIikoTotals()
+    console.log(`  ✓ iiko totals: ${count} reports updated`)
+  } catch (err) {
+    console.error(`  ✗ iiko totals:`, err instanceof Error ? err.message : err)
   }
 }
 
