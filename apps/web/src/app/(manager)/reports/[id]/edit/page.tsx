@@ -63,6 +63,16 @@ export default async function EditReportPage({ params }: { params: Promise<{ id:
   const estList: EstRow[] = (establishments ?? [])
     .flatMap(e => (e.establishments ? [e.establishments as unknown as EstRow] : []))
 
+  // Ensure the report's own establishment is always in the list (e.g. founder viewing manager route)
+  if (!estList.some(e => e.id === report.establishment_id)) {
+    const { data: reportEst } = await supabase
+      .from('establishments')
+      .select('id, name, code, config')
+      .eq('id', report.establishment_id)
+      .single()
+    if (reportEst) estList.unshift(reportEst as unknown as EstRow)
+  }
+
   // Build payGroupAmounts from stored report_items
   const payGroupAmounts: Record<string, number> = Object.fromEntries(
     (paymentGroups ?? []).map(g => [g.id, 0])
