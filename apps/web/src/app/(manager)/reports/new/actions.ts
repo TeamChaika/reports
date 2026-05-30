@@ -6,6 +6,85 @@ import { createClient } from '@/lib/supabase/server'
 import { getUserOrRedirect } from '@/lib/auth'
 import { reportFormSchema, reportDraftPatchSchema, addExpenseSchema } from '@shift-reports/shared'
 import type { ReportDraftPatch, AddExpenseValues } from '@shift-reports/shared'
+import type { SupabaseClient } from '@supabase/supabase-js'
+
+function resolveGroupCode(payTypeName: string): string | null {
+  const s = payTypeName.toLowerCase()
+  if (s.includes('без оплаты')) return null
+  if (s.includes('наличн')) return 'cash'
+  if (s.includes('карт') || s.includes('безнал')) return 'card'
+  if (s.includes('кальян')) return 'hookah'
+  if (s.includes('онлайн') || s.includes('сайт') || s.includes('доставк')) return 'online'
+  return 'other'
+}
+
+async function prefillRevenueFromIiko(
+  supabase: SupabaseClient,
+  reportId: string,
+  establishmentId: string,
+  businessDate: string,
+) {
+  // Get establishment's iiko_department_id
+  const { data: est } = await supabase
+    .from('establishments')
+    .select('iiko_department_id')
+    .eq('id', establishmentId)
+    .single()
+  if (!est?.iiko_department_id) return
+
+  // Fetch OLAP rows for this department and date
+  const { data: olapRows } = await supabase
+    .from('iiko_olap_cache')
+    .select('pay_type, dish_sum')
+    .eq('department_id', est.iiko_department_id)
+    .eq('business_date', businessDate)
+  if (!olapRows || olapRows.length === 0) return
+
+  // Load payment groups
+  const { data: groups } = await supabase
+    .from('payment_groups')
+    .select('id, name, code, maps_to')
+    .eq('is_active', true)
+  if (!groups || groups.length === 0) return
+
+  const groupByCode = new Map(groups.map(g => [g.code, g]))
+
+  // Aggregate by group code
+  const sums = new Map<string, number>()
+  for (const row of olapRows) {
+    const code = resolveGroupCode(row.pay_type ?? '')
+    if (!code) continue
+    sums.set(code, (sums.get(code) ?? 0) + Number(row.dish_sum))
+  }
+  if (sums.size === 0) return
+
+  // Compute revenue totals
+  let revenue_cash = 0, revenue_card = 0, revenue_other = 0
+  for (const [code, amount] of sums) {
+    const g = groupByCode.get(code)
+    if (!g) continue
+    if (g.maps_to === 'cash') revenue_cash += amount
+    else if (g.maps_to === 'card') revenue_card += amount
+    else revenue_other += amount
+  }
+
+  // Update report revenue
+  await supabase
+    .from('daily_reports')
+    .update({ revenue_cash, revenue_card, revenue_other })
+    .eq('id', reportId)
+
+  // Replace report_items
+  await supabase.from('report_items').delete().eq('report_id', reportId)
+  const items = []
+  for (const [code, amount] of sums) {
+    if (amount <= 0) continue
+    const g = groupByCode.get(code)
+    if (!g) continue
+    items.push({ report_id: reportId, pay_group: g.name, pay_group_id: g.id, amount })
+  }
+  if (items.length > 0) await supabase.from('report_items').insert(items)
+}
 
 export async function createDraftAction(establishmentId: string, businessDate: string) {
   const user = await getUserOrRedirect()
@@ -27,6 +106,9 @@ export async function createDraftAction(establishmentId: string, businessDate: s
     .single()
 
   if (error || !data) throw new Error('Не удалось создать отчёт')
+
+  // Pre-fill revenue from iiko OLAP cache for this establishment and date
+  await prefillRevenueFromIiko(supabase, data.id, establishmentId, businessDate)
 
   redirect(`/reports/${data.id}/edit`)
 }
