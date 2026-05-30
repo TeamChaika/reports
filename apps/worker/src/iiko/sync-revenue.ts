@@ -109,10 +109,10 @@ export async function syncRevenue(fromDate?: string, toDate?: string): Promise<n
     let reportId: string
 
     if (existing) {
-      // Update existing iiko-sourced draft
+      // Update existing iiko-sourced draft; cash_submitted = revenue_cash when no expenses yet
       const { error } = await db
         .from('daily_reports')
-        .update({ revenue_cash, revenue_card, revenue_other })
+        .update({ revenue_cash, revenue_card, revenue_other, cash_submitted: revenue_cash })
         .eq('id', existing.id)
       if (error) {
         console.warn(`  ! revenue update ${key}: ${error.message}`)
@@ -120,10 +120,10 @@ export async function syncRevenue(fromDate?: string, toDate?: string): Promise<n
       }
       reportId = existing.id as string
     } else {
-      // Create new draft from iiko
+      // Create new draft from iiko; cash_submitted = revenue_cash (no expenses yet)
       const { data: created, error } = await db
         .from('daily_reports')
-        .insert({ establishment_id, business_date, status: 'draft', source: 'iiko', revenue_cash, revenue_card, revenue_other })
+        .insert({ establishment_id, business_date, status: 'draft', source: 'iiko', revenue_cash, revenue_card, revenue_other, cash_submitted: revenue_cash })
         .select('id')
         .single()
       if (error || !created) {

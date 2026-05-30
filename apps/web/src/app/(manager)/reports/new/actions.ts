@@ -68,10 +68,10 @@ async function prefillRevenueFromIiko(
     else revenue_other += amount
   }
 
-  // Update report revenue
+  // Update report revenue + pre-fill cash_submitted = revenue_cash (no expenses yet)
   await supabase
     .from('daily_reports')
-    .update({ revenue_cash, revenue_card, revenue_other })
+    .update({ revenue_cash, revenue_card, revenue_other, cash_submitted: revenue_cash })
     .eq('id', reportId)
 
   // Replace report_items
