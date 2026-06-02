@@ -132,10 +132,11 @@ export default async function IikoPage({
   const markupPct = fin.cost > 0 ? (fin.profit / fin.cost) * 100 : 0
   const discountPct = fin.gross > 0 ? (fin.discount / fin.gross) * 100 : 0
 
-  // Discount by type
+  // Discount by type (skip rows without a discount type)
   const discMap = new Map<string, number>()
   for (const r of discRows ?? []) {
-    const t = r.discount_type || '(без типа)'
+    const t = (r.discount_type ?? '').trim()
+    if (!t) continue
     discMap.set(t, (discMap.get(t) ?? 0) + Number(r.amount))
   }
   const discountBreakdown = [...discMap.entries()]
