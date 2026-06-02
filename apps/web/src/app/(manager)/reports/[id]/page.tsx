@@ -31,12 +31,12 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
     .from('daily_reports')
     .select(`
       id, establishment_id, business_date, status,
-      cash_start, cash_end, notes,
+      cash_submitted, notes,
       revenue_cash, revenue_total, iiko_total, iiko_diff,
       submitted_at,
       establishments(name),
-      report_items(pay_type, amount),
-      report_expenses(category, description, amount),
+      report_items(pay_group, amount),
+      report_expenses(name, description, amount, approver_name),
       report_prepayments(employee_id, employee_name, amount)
     `)
     .eq('id', id)
@@ -85,7 +85,7 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
           <div className="flex flex-col gap-2">
             {(report.report_items ?? []).map((item, i) => (
               <div key={i} className="flex items-center justify-between">
-                <span className="text-sm" style={{ color: 'var(--color-text-muted)' }}>{item.pay_type}</span>
+                <span className="text-sm" style={{ color: 'var(--color-text-muted)' }}>{item.pay_group}</span>
                 <span className="text-sm font-medium" style={{ color: 'var(--color-text)' }}>{fmt(item.amount)}</span>
               </div>
             ))}
@@ -121,13 +121,9 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
         {/* Cash */}
         <section className="p-4 rounded-xl" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}>
           <h2 className="text-sm font-semibold mb-3" style={{ color: 'var(--color-text)' }}>Касса</h2>
-          <div className="grid grid-cols-2 gap-3">
-            {[['На начало смены', report.cash_start], ['На конец смены', report.cash_end]].map(([label, val]) => (
-              <div key={label as string}>
-                <p className="text-xs mb-1" style={{ color: 'var(--color-text-muted)' }}>{label}</p>
-                <p className="text-sm font-medium" style={{ color: 'var(--color-text)' }}>{fmt(val as number | null)}</p>
-              </div>
-            ))}
+          <div className="flex items-center justify-between">
+            <span className="text-sm" style={{ color: 'var(--color-text-muted)' }}>Сдано наличных в бухгалтерию</span>
+            <span className="text-sm font-medium" style={{ color: 'var(--color-text)' }}>{fmt(report.cash_submitted)}</span>
           </div>
         </section>
 
@@ -141,8 +137,8 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
               {report.report_expenses!.map((e, i) => (
                 <div key={i} className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="text-sm" style={{ color: 'var(--color-text)' }}>{e.category}</p>
-                    {e.description && <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-muted)' }}>{e.description}</p>}
+                    <p className="text-sm" style={{ color: 'var(--color-text)' }}>{e.name}</p>
+                    {e.approver_name && <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-muted)' }}>Согл. {e.approver_name}</p>}
                   </div>
                   <span className="text-sm font-medium shrink-0" style={{ color: 'var(--color-text)' }}>{fmt(e.amount)}</span>
                 </div>
