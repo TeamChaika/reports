@@ -29,9 +29,28 @@ interface HourRow {
   GuestNum: number
 }
 
+interface SummaryRow {
+  Department: string
+  'OpenDate.Typed': string
+  DishSumInt: number
+  DishDiscountSumInt: number
+  DiscountSum: number
+  'ProductCostBase.Profit': number
+  'ProductCostBase.ProductCost': number
+}
+
+interface DiscountRow {
+  Department: string
+  'OpenDate.Typed': string
+  'OrderDiscount.Type': string
+  DiscountSum: number
+}
+
 // Syncs OLAP sales data into iiko_olap_cache (by pay type) and iiko_hourly_cache (by hour).
 // Window: last 35 days through tomorrow so the current open shift is included.
-export async function syncIikoSales(config: IikoConfig): Promise<{ payTypes: number; hourly: number }> {
+export async function syncIikoSales(
+  config: IikoConfig,
+): Promise<{ payTypes: number; hourly: number; summary: number; discounts: number }> {
   const from = dateStr(new Date(Date.now() - 35 * 86_400_000))
   const to = dateStr(new Date(Date.now() + 86_400_000))
 
@@ -102,5 +121,60 @@ export async function syncIikoSales(config: IikoConfig): Promise<{ payTypes: num
     if (error) throw new Error(`sync hourly: ${error.message}`)
   }
 
-  return { payTypes: payRecords.length, hourly: hourRecords.length }
+  // ── Query C: financial summary (markup, cost, discount) by establishment ──
+  const sumRes = await iikoPost<OlapResponse<SummaryRow>>(config, '/resto/api/v2/reports/olap', {
+    reportType: 'SALES',
+    buildSummary: 'false',
+    groupByRowFields: ['OpenDate.Typed', 'Department'],
+    aggregateFields: ['DishSumInt', 'DishDiscountSumInt', 'DiscountSum', 'ProductCostBase.Profit', 'ProductCostBase.ProductCost'],
+    filters: { 'OpenDate.Typed': { filterType: 'DateRange', periodType: 'CUSTOM', from, to } },
+  })
+  const sumRecords = rows(sumRes)
+    .map(r => ({
+      department_id: deptByName.get(r.Department) ?? null,
+      department_name: r.Department,
+      business_date: r['OpenDate.Typed'],
+      gross: Number(r.DishSumInt ?? 0),
+      net: Number(r.DishDiscountSumInt ?? 0),
+      discount: Number(r.DiscountSum ?? 0),
+      profit: Number(r['ProductCostBase.Profit'] ?? 0),
+      cost: Number(r['ProductCostBase.ProductCost'] ?? 0),
+      fetched_at: now,
+    }))
+    .filter(r => r.department_name)
+
+  if (sumRecords.length > 0) {
+    const { error } = await db
+      .from('iiko_summary_cache')
+      .upsert(sumRecords, { onConflict: 'department_name,business_date' })
+    if (error) throw new Error(`sync summary: ${error.message}`)
+  }
+
+  // ── Query D: discount amounts by type ─────────────────────────────────────
+  const discRes = await iikoPost<OlapResponse<DiscountRow>>(config, '/resto/api/v2/reports/olap', {
+    reportType: 'SALES',
+    buildSummary: 'false',
+    groupByRowFields: ['OpenDate.Typed', 'Department', 'OrderDiscount.Type'],
+    aggregateFields: ['DiscountSum'],
+    filters: { 'OpenDate.Typed': { filterType: 'DateRange', periodType: 'CUSTOM', from, to } },
+  })
+  const discRecords = rows(discRes)
+    .map(r => ({
+      department_id: deptByName.get(r.Department) ?? null,
+      department_name: r.Department,
+      business_date: r['OpenDate.Typed'],
+      discount_type: (r['OrderDiscount.Type'] ?? '').trim(),
+      amount: Number(r.DiscountSum ?? 0),
+      fetched_at: now,
+    }))
+    .filter(r => r.department_name && r.amount > 0)
+
+  if (discRecords.length > 0) {
+    const { error } = await db
+      .from('iiko_discount_cache')
+      .upsert(discRecords, { onConflict: 'department_name,business_date,discount_type' })
+    if (error) throw new Error(`sync discounts: ${error.message}`)
+  }
+
+  return { payTypes: payRecords.length, hourly: hourRecords.length, summary: sumRecords.length, discounts: discRecords.length }
 }

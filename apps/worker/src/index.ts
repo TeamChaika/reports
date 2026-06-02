@@ -43,8 +43,8 @@ async function runLiveSync() {
     console.error(`  ✗ cashshifts:`, err instanceof Error ? err.message : err)
   }
   try {
-    const { payTypes, hourly } = await syncIikoSales(config)
-    console.log(`  ✓ iiko sales: ${payTypes} pay-type rows, ${hourly} hourly rows`)
+    const { payTypes, hourly, summary, discounts } = await syncIikoSales(config)
+    console.log(`  ✓ iiko sales: ${payTypes} pay-type, ${hourly} hourly, ${summary} summary, ${discounts} discount rows`)
   } catch (err) {
     console.error(`  ✗ iiko sales:`, err instanceof Error ? err.message : err)
   }

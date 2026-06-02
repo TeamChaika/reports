@@ -51,6 +51,24 @@ export default async function IikoPage({
   if (deptFilter) hourQuery = hourQuery.eq('department_id', deptFilter)
   const { data: hourRows } = await hourQuery
 
+  // ── Financial summary cache (markup / discount / cost) ────────────────────
+  let sumQuery = supabase
+    .from('iiko_summary_cache')
+    .select('gross, net, discount, profit, cost')
+    .gte('business_date', from)
+    .lte('business_date', to)
+  if (deptFilter) sumQuery = sumQuery.eq('department_id', deptFilter)
+  const { data: sumRows } = await sumQuery
+
+  // ── Discount-by-type cache ────────────────────────────────────────────────
+  let discQuery = supabase
+    .from('iiko_discount_cache')
+    .select('discount_type, amount')
+    .gte('business_date', from)
+    .lte('business_date', to)
+  if (deptFilter) discQuery = discQuery.eq('department_id', deptFilter)
+  const { data: discRows } = await discQuery
+
   // ── Aggregates ────────────────────────────────────────────────────────────
   const totalRevenue = (payRows ?? []).reduce((s, r) => s + Number(r.dish_discount_sum), 0)
   const totalOrders = (hourRows ?? []).reduce((s, r) => s + Number(r.orders), 0)
@@ -100,6 +118,33 @@ export default async function IikoPage({
 
   const maxPay = Math.max(...payBreakdown.map(p => p.total), 1)
 
+  // Financials: markup % and discount %
+  const fin = (sumRows ?? []).reduce(
+    (a, r) => ({
+      gross: a.gross + Number(r.gross),
+      net: a.net + Number(r.net),
+      discount: a.discount + Number(r.discount),
+      profit: a.profit + Number(r.profit),
+      cost: a.cost + Number(r.cost),
+    }),
+    { gross: 0, net: 0, discount: 0, profit: 0, cost: 0 },
+  )
+  const markupPct = fin.cost > 0 ? (fin.profit / fin.cost) * 100 : 0
+  const discountPct = fin.gross > 0 ? (fin.discount / fin.gross) * 100 : 0
+
+  // Discount by type
+  const discMap = new Map<string, number>()
+  for (const r of discRows ?? []) {
+    const t = r.discount_type || '(без типа)'
+    discMap.set(t, (discMap.get(t) ?? 0) + Number(r.amount))
+  }
+  const discountBreakdown = [...discMap.entries()]
+    .map(([type, amount]) => ({ type, amount }))
+    .filter(d => d.amount > 0)
+    .sort((a, b) => b.amount - a.amount)
+  const totalDiscount = discountBreakdown.reduce((s, d) => s + d.amount, 0)
+  const maxDisc = Math.max(...discountBreakdown.map(d => d.amount), 1)
+
   const dateLabel = isSingleDay
     ? new Date(from + 'T12:00:00').toLocaleDateString('ru', { day: 'numeric', month: 'long', year: 'numeric' })
     : `${from} — ${to}`
@@ -142,6 +187,28 @@ export default async function IikoPage({
             </div>
           ))}
         </div>
+
+        {/* Financial metrics row */}
+        {hasData && fin.gross > 0 && (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {[
+              { label: 'Наценка', value: markupPct.toFixed(0) + '%', sub: Math.round(fin.profit).toLocaleString('ru') + ' ₽', color: 'var(--color-success)' },
+              { label: 'Скидка', value: discountPct.toFixed(1) + '%', sub: Math.round(fin.discount).toLocaleString('ru') + ' ₽', color: 'var(--color-warning)' },
+              { label: 'Себестоимость', value: Math.round(fin.cost).toLocaleString('ru') + ' ₽', sub: null, color: 'var(--color-text)' },
+              { label: 'Выручка без скидки', value: Math.round(fin.gross).toLocaleString('ru') + ' ₽', sub: null, color: 'var(--color-text-muted)' },
+            ].map(({ label, value, sub, color }) => (
+              <div
+                key={label}
+                className="px-5 py-4 rounded-xl"
+                style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
+              >
+                <p className="text-xs mb-1.5" style={{ color: 'var(--color-text-muted)' }}>{label}</p>
+                <p className="text-xl font-bold" style={{ color }}>{value}</p>
+                {sub && <p className="text-xs mt-0.5 tabular-nums" style={{ color: 'var(--color-text-disabled)' }}>{sub}</p>}
+              </div>
+            ))}
+          </div>
+        )}
 
         {!hasData ? (
           <div
@@ -226,6 +293,48 @@ export default async function IikoPage({
                 </table>
               </div>
             </div>
+
+            {/* Discounts by type */}
+            {discountBreakdown.length > 0 && (
+              <div
+                className="rounded-xl"
+                style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', padding: 'var(--space-5)' }}
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
+                    Скидки по типам
+                  </h2>
+                  <span className="text-sm font-semibold tabular-nums" style={{ color: 'var(--color-warning)' }}>
+                    {Math.round(totalDiscount).toLocaleString('ru')} ₽
+                  </span>
+                </div>
+                <div className="flex flex-col gap-2.5">
+                  {discountBreakdown.map(d => (
+                    <div key={d.type}>
+                      <div className="flex items-center justify-between mb-1 gap-3">
+                        <span className="text-sm truncate-1" style={{ color: 'var(--color-text)' }}>{d.type}</span>
+                        <span className="text-sm font-medium tabular-nums shrink-0" style={{ color: 'var(--color-text)' }}>
+                          {Math.round(d.amount).toLocaleString('ru')} ₽
+                          <span className="text-xs ml-1.5" style={{ color: 'var(--color-text-disabled)' }}>
+                            {((d.amount / totalDiscount) * 100).toFixed(0)}%
+                          </span>
+                        </span>
+                      </div>
+                      <div style={{ height: '5px', borderRadius: 'var(--radius-full)', background: 'var(--color-bg)' }}>
+                        <div
+                          style={{
+                            width: `${(d.amount / maxDisc) * 100}%`,
+                            height: '100%',
+                            borderRadius: 'var(--radius-full)',
+                            background: 'var(--color-warning)',
+                          }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </>
         )}
 
