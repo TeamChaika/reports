@@ -57,6 +57,16 @@ export default function FounderMobileMenu() {
             Дашборд
           </Link>
           <Link
+            href="/iiko"
+            className="text-sm px-4 py-2.5 transition-colors"
+            style={{ color: 'var(--color-text-muted)' }}
+            onClick={close}
+            onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--color-text)' }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--color-text-muted)' }}
+          >
+            iiko
+          </Link>
+          <Link
             href="/employees"
             className="text-sm px-4 py-2.5 transition-colors"
             style={{ color: 'var(--color-text-muted)' }}

@@ -31,6 +31,7 @@ export default function FounderLayout({ children }: { children: React.ReactNode 
             <span style={{ color: 'var(--color-border)' }} aria-hidden="true">·</span>
             {[
               { href: '/dashboard', label: 'Дашборд' },
+              { href: '/iiko', label: 'iiko' },
               { href: '/employees', label: 'Сотрудники' },
               { href: '/establishments', label: 'Заведения' },
               { href: '/expenses', label: 'Бухгалтерия' },

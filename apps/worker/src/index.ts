@@ -3,6 +3,7 @@ import { syncEmployees } from './iiko/sync-employees'
 import { syncStores } from './iiko/sync-stores'
 import { syncProducts } from './iiko/sync-products'
 import { syncCashShifts } from './iiko/sync-cashshifts'
+import { syncIikoSales } from './iiko/sync-iiko-sales'
 import type { IikoConfig } from './iiko/client'
 
 const config: IikoConfig = {
@@ -33,24 +34,30 @@ async function runReferenceSync() {
   }
 }
 
-async function runCashShiftSync() {
-  console.log(`[${new Date().toISOString()}] Starting cash shift sync...`)
+async function runLiveSync() {
+  console.log(`[${new Date().toISOString()}] Starting live sync...`)
   try {
     const count = await syncCashShifts(config)
     console.log(`  ✓ cashshifts: ${count} reports updated`)
   } catch (err) {
     console.error(`  ✗ cashshifts:`, err instanceof Error ? err.message : err)
   }
+  try {
+    const { payTypes, hourly } = await syncIikoSales(config)
+    console.log(`  ✓ iiko sales: ${payTypes} pay-type rows, ${hourly} hourly rows`)
+  } catch (err) {
+    console.error(`  ✗ iiko sales:`, err instanceof Error ? err.message : err)
+  }
 }
 
 // On startup: run both immediately
 await runReferenceSync()
-await runCashShiftSync()
+await runLiveSync()
 
 // Reference data: every 6 hours
 setInterval(runReferenceSync, 6 * 60 * 60 * 1000)
 
-// Cash shift sync: every 5 minutes
-setInterval(runCashShiftSync, 5 * 60 * 1000)
+// Live sync (cash shifts + OLAP sales): every 5 minutes
+setInterval(runLiveSync, 5 * 60 * 1000)
 
-console.log('Worker running — reference sync every 6h, cash shift sync every 5m')
+console.log('Worker running — reference sync every 6h, live sync every 5m')
