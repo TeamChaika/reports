@@ -7,7 +7,11 @@ const DEFAULT_DOMAIN = '@chaika.team'
 
 function resolveEmail(input: string): string {
   const trimmed = input.trim()
-  return trimmed.includes('@') ? trimmed : trimmed + DEFAULT_DOMAIN
+  if (trimmed.includes('@')) return trimmed
+  // Normalize phone: strip leading +7 or 8, keep only digits
+  const digits = trimmed.replace(/\D/g, '')
+  const normalized = digits.startsWith('7') ? digits : digits.startsWith('8') ? '7' + digits.slice(1) : digits
+  return normalized + DEFAULT_DOMAIN
 }
 
 export async function loginAction(formData: FormData) {

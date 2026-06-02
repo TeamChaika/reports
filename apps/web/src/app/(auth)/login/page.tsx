@@ -77,7 +77,7 @@ export default async function LoginPage({
                 className="input"
               />
               <p className="text-xs mt-1" style={{ color: 'var(--color-text-muted)' }}>
-                Введите номер телефона — домен @chaika.team подставится автоматически
+                Введите номер телефона или email
               </p>
             </div>
 
