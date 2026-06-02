@@ -85,6 +85,23 @@ export async function createEmployeeAction(
   return { ok: true }
 }
 
+export async function changePasswordAction(
+  userId: string,
+  newPassword: string,
+): Promise<{ ok: boolean; error?: string }> {
+  await requireFounder()
+
+  if (!newPassword || newPassword.length < 8) {
+    return { ok: false, error: 'Пароль должен содержать минимум 8 символов' }
+  }
+
+  const adminClient = createAdminClient()
+  const { error } = await adminClient.auth.admin.updateUserById(userId, { password: newPassword })
+
+  if (error) return { ok: false, error: 'Не удалось сменить пароль' }
+  return { ok: true }
+}
+
 export async function toggleEmployeeActiveAction(
   userId: string,
   isActive: boolean,
