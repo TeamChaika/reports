@@ -142,10 +142,13 @@ export async function removeExpenseAction(
   await getUserOrRedirect()
   const supabase = await createClient()
 
+  // Scope by report_id as well as id — defence in depth on top of RLS,
+  // prevents deleting an expense by guessing its id alone.
   const { error } = await supabase
     .from('report_expenses')
     .delete()
     .eq('id', expenseId)
+    .eq('report_id', reportId)
 
   if (error) return { ok: false, error: 'Не удалось удалить расход' }
   revalidatePath(`/reports/${reportId}/edit`)
