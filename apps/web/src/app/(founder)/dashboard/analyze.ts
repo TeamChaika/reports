@@ -19,7 +19,7 @@ function getAiClient(): OpenAI | null {
     apiKey,
     defaultHeaders: {
       'HTTP-Referer': process.env['NEXT_PUBLIC_APP_URL'] ?? '',
-      'X-Title': 'Shift Reports Analytics',
+      'X-Title': 'Chaika Team Analytics',
     },
   })
 }

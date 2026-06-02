@@ -26,13 +26,13 @@ export default async function LoginPage({
               letterSpacing: 'var(--tracking-wide)',
             }}
           >
-            SR
+            CT
           </div>
           <h1
             className="text-xl font-semibold tracking-tight"
             style={{ color: 'var(--color-text)' }}
           >
-            Shift Reports
+            Chaika Team
           </h1>
           <p className="text-sm mt-1" style={{ color: 'var(--color-text-muted)' }}>
             Войдите чтобы продолжить

@@ -20,10 +20,10 @@ export default function FounderLayout({ children }: { children: React.ReactNode 
                 color: 'var(--color-accent)',
               }}
             >
-              SR
+              CT
             </div>
             <span className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
-              Shift Reports
+              Chaika Team
             </span>
           </div>
 

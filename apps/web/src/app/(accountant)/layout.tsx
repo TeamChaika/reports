@@ -19,10 +19,10 @@ export default function AccountantLayout({ children }: { children: React.ReactNo
                 color: 'var(--color-accent)',
               }}
             >
-              SR
+              CT
             </div>
             <span className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
-              Shift Reports
+              Chaika Team
             </span>
           </div>
 

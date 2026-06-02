@@ -28,7 +28,7 @@ export default async function ChangePasswordPage({
               color: 'var(--color-accent)',
             }}
           >
-            SR
+            CT
           </div>
           <h1 className="text-xl font-semibold tracking-tight" style={{ color: 'var(--color-text)' }}>
             Смена пароля
