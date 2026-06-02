@@ -7,7 +7,7 @@ import { createAdminClient } from '@/lib/supabase/server'
 
 async function requireFounder() {
   const profile = await getProfileOrRedirect()
-  if (profile.role !== 'founder') redirect('/dashboard')
+  if (profile.role !== 'founder' && profile.role !== 'admin') redirect('/dashboard')
   return profile
 }
 

@@ -16,7 +16,7 @@ const createEmployeeSchema = z.object({
 
 async function requireFounder() {
   const profile = await getProfileOrRedirect()
-  if (profile.role !== 'founder') {
+  if (profile.role !== 'founder' && profile.role !== 'admin') {
     redirect('/dashboard')
   }
   return profile

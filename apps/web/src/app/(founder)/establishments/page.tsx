@@ -5,7 +5,7 @@ import { setEstablishmentActiveAction } from './actions'
 
 export default async function EstablishmentsPage() {
   const profile = await getProfileOrRedirect()
-  if (profile.role !== 'founder') redirect('/dashboard')
+  if (profile.role !== 'founder' && profile.role !== 'admin') redirect('/dashboard')
 
   const supabase = await createClient()
   const { data: establishments } = await supabase

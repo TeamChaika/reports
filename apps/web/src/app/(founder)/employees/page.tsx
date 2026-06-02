@@ -11,7 +11,7 @@ export default async function EmployeesPage({
   searchParams: Promise<{ establishment?: string }>
 }) {
   const profile = await getProfileOrRedirect()
-  if (profile.role !== 'founder') {
+  if (profile.role !== 'founder' && profile.role !== 'admin') {
     redirect('/dashboard')
   }
 
