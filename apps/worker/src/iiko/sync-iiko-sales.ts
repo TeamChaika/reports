@@ -37,6 +37,7 @@ interface SummaryRow {
   DiscountSum: number
   'ProductCostBase.Profit': number
   'ProductCostBase.ProductCost': number
+  'ProductCostBase.MarkUp': number
 }
 
 interface DiscountRow {
@@ -126,7 +127,7 @@ export async function syncIikoSales(
     reportType: 'SALES',
     buildSummary: 'false',
     groupByRowFields: ['OpenDate.Typed', 'Department'],
-    aggregateFields: ['DishSumInt', 'DishDiscountSumInt', 'DiscountSum', 'ProductCostBase.Profit', 'ProductCostBase.ProductCost'],
+    aggregateFields: ['DishSumInt', 'DishDiscountSumInt', 'DiscountSum', 'ProductCostBase.Profit', 'ProductCostBase.ProductCost', 'ProductCostBase.MarkUp'],
     filters: { 'OpenDate.Typed': { filterType: 'DateRange', periodType: 'CUSTOM', from, to } },
   })
   const sumRecords = rows(sumRes)
@@ -139,6 +140,7 @@ export async function syncIikoSales(
       discount: Number(r.DiscountSum ?? 0),
       profit: Number(r['ProductCostBase.Profit'] ?? 0),
       cost: Number(r['ProductCostBase.ProductCost'] ?? 0),
+      markup: Number(r['ProductCostBase.MarkUp'] ?? 0),
       fetched_at: now,
     }))
     .filter(r => r.department_name)

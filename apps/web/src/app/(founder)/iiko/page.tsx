@@ -65,7 +65,7 @@ export default async function IikoPage({
   // ── Financial summary cache (markup / discount / cost) ────────────────────
   let sumQuery = supabase
     .from('iiko_summary_cache')
-    .select('gross, net, discount, profit, cost')
+    .select('department_name, gross, net, discount, profit, cost, markup')
     .gte('business_date', from)
     .lte('business_date', to)
   if (deptFilter) sumQuery = sumQuery.eq('department_id', deptFilter)
@@ -130,8 +130,21 @@ export default async function IikoPage({
     e.orders += Number(r.orders)
     estMap.set(r.department_name, e)
   }
+  // Per-establishment markup from iiko native MarkUp, cost-weighted across the period
+  const estFin = new Map<string, { markupCost: number; cost: number }>()
+  for (const r of sumRows ?? []) {
+    const f = estFin.get(r.department_name) ?? { markupCost: 0, cost: 0 }
+    f.markupCost += Number(r.markup) * Number(r.cost)
+    f.cost += Number(r.cost)
+    estFin.set(r.department_name, f)
+  }
   const estBreakdown = [...estMap.entries()]
-    .map(([name, v]) => ({ name, revenue: v.revenue, orders: v.orders, avg: v.orders > 0 ? v.revenue / v.orders : 0 }))
+    .map(([name, v]) => {
+      const f = estFin.get(name)
+      // native MarkUp is a fraction (2.086 = 208.6%); ×100 for display
+      const markup = f && f.cost > 0 ? (f.markupCost / f.cost) * 100 : null
+      return { name, revenue: v.revenue, orders: v.orders, avg: v.orders > 0 ? v.revenue / v.orders : 0, markup }
+    })
     .filter(e => e.revenue > 0)
     .sort((a, b) => b.revenue - a.revenue)
 
@@ -151,7 +164,7 @@ export default async function IikoPage({
 
   const maxPay = Math.max(...payGroupBreakdown.map(p => p.total), 1)
 
-  // Financials: markup % and discount %
+  // Financials: markup % (native iiko MarkUp, cost-weighted) and discount %
   const fin = (sumRows ?? []).reduce(
     (a, r) => ({
       gross: a.gross + Number(r.gross),
@@ -159,10 +172,11 @@ export default async function IikoPage({
       discount: a.discount + Number(r.discount),
       profit: a.profit + Number(r.profit),
       cost: a.cost + Number(r.cost),
+      markupCost: a.markupCost + Number(r.markup) * Number(r.cost),
     }),
-    { gross: 0, net: 0, discount: 0, profit: 0, cost: 0 },
+    { gross: 0, net: 0, discount: 0, profit: 0, cost: 0, markupCost: 0 },
   )
-  const markupPct = fin.cost > 0 ? (fin.profit / fin.cost) * 100 : 0
+  const markupPct = fin.cost > 0 ? (fin.markupCost / fin.cost) * 100 : 0
   const discountPct = fin.gross > 0 ? (fin.discount / fin.gross) * 100 : 0
 
   // Discount by type (skip rows without a discount type)
@@ -278,13 +292,14 @@ export default async function IikoPage({
                 <h2 className="text-sm font-semibold mb-4" style={{ color: 'var(--color-text)' }}>
                   По заведениям
                 </h2>
-                <table className="data-table" style={{ minWidth: '320px' }}>
+                <table className="data-table" style={{ minWidth: '380px' }}>
                   <thead>
                     <tr>
                       <th>Заведение</th>
                       <th style={{ textAlign: 'right' }}>Выручка</th>
                       <th style={{ textAlign: 'right' }}>Чеков</th>
                       <th style={{ textAlign: 'right' }}>Ср. чек</th>
+                      <th style={{ textAlign: 'right' }}>Наценка</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -299,6 +314,9 @@ export default async function IikoPage({
                         </td>
                         <td className="tabular-nums" style={{ textAlign: 'right', color: 'var(--color-text-muted)' }}>
                           {Math.round(e.avg).toLocaleString('ru')} ₽
+                        </td>
+                        <td className="tabular-nums" style={{ textAlign: 'right', color: e.markup != null ? 'var(--color-success)' : 'var(--color-text-disabled)' }}>
+                          {e.markup != null ? e.markup.toFixed(0) + '%' : '—'}
                         </td>
                       </tr>
                     ))}
