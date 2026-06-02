@@ -65,7 +65,7 @@ export default async function IikoPage({
   // ── Financial summary cache (markup / discount / cost) ────────────────────
   let sumQuery = supabase
     .from('iiko_summary_cache')
-    .select('department_name, gross, net, discount, profit, cost, markup')
+    .select('department_name, gross, net, discount, profit, cost, markup, discount_pct')
     .gte('business_date', from)
     .lte('business_date', to)
   if (deptFilter) sumQuery = sumQuery.eq('department_id', deptFilter)
@@ -164,7 +164,7 @@ export default async function IikoPage({
 
   const maxPay = Math.max(...payGroupBreakdown.map(p => p.total), 1)
 
-  // Financials: markup % (native iiko MarkUp, cost-weighted) and discount %
+  // Financials: native iiko MarkUp (cost-weighted) and DiscountPercent (gross-weighted)
   const fin = (sumRows ?? []).reduce(
     (a, r) => ({
       gross: a.gross + Number(r.gross),
@@ -173,11 +173,12 @@ export default async function IikoPage({
       profit: a.profit + Number(r.profit),
       cost: a.cost + Number(r.cost),
       markupCost: a.markupCost + Number(r.markup) * Number(r.cost),
+      discountGross: a.discountGross + Number(r.discount_pct) * Number(r.gross),
     }),
-    { gross: 0, net: 0, discount: 0, profit: 0, cost: 0, markupCost: 0 },
+    { gross: 0, net: 0, discount: 0, profit: 0, cost: 0, markupCost: 0, discountGross: 0 },
   )
   const markupPct = fin.cost > 0 ? (fin.markupCost / fin.cost) * 100 : 0
-  const discountPct = fin.gross > 0 ? (fin.discount / fin.gross) * 100 : 0
+  const discountPct = fin.gross > 0 ? (fin.discountGross / fin.gross) * 100 : 0
 
   // Discount by type (skip rows without a discount type)
   const discMap = new Map<string, number>()
