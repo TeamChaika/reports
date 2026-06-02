@@ -3,12 +3,20 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 
+const DEFAULT_DOMAIN = '@chaika.team'
+
+function resolveEmail(input: string): string {
+  const trimmed = input.trim()
+  return trimmed.includes('@') ? trimmed : trimmed + DEFAULT_DOMAIN
+}
+
 export async function loginAction(formData: FormData) {
-  const email = formData.get('email') as string
+  const raw = formData.get('login') as string
   const password = formData.get('password') as string
 
-  if (!email || !password) redirect('/login?error=missing')
+  if (!raw || !password) redirect('/login?error=missing')
 
+  const email = resolveEmail(raw)
   const supabase = await createClient()
   const { error } = await supabase.auth.signInWithPassword({ email, password })
 

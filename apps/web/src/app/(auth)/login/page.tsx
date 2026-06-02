@@ -55,26 +55,30 @@ export default async function LoginPage({
               role="alert"
             >
               {error === 'invalid'
-                ? 'Неверный email или пароль'
+                ? 'Неверный логин или пароль'
                 : error === 'missing'
-                ? 'Введите email и пароль'
+                ? 'Введите номер телефона и пароль'
                 : 'Ошибка входа. Попробуйте ещё раз.'}
             </div>
           )}
 
           <form action={loginAction} className="flex flex-col gap-4">
             <div className="form-group">
-              <label htmlFor="email" className="label">
-                Email
+              <label htmlFor="login" className="label">
+                Номер телефона или email
               </label>
               <input
-                id="email"
-                type="email"
-                name="email"
+                id="login"
+                type="text"
+                name="login"
                 required
-                autoComplete="email"
+                autoComplete="username"
+                placeholder="79781234567 или email@example.com"
                 className="input"
               />
+              <p className="text-xs mt-1" style={{ color: 'var(--color-text-muted)' }}>
+                Введите номер телефона — домен @chaika.team подставится автоматически
+              </p>
             </div>
 
             <div className="form-group">
