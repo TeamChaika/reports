@@ -2,9 +2,7 @@ import { syncDepartments } from './iiko/sync-departments'
 import { syncEmployees } from './iiko/sync-employees'
 import { syncStores } from './iiko/sync-stores'
 import { syncProducts } from './iiko/sync-products'
-import { syncOlap } from './iiko/sync-olap'
-import { syncRevenue } from './iiko/sync-revenue'
-import { syncIikoTotals } from './iiko/sync-iiko-totals'
+import { syncCashShifts } from './iiko/sync-cashshifts'
 import type { IikoConfig } from './iiko/client'
 
 const config: IikoConfig = {
@@ -35,36 +33,24 @@ async function runReferenceSync() {
   }
 }
 
-async function runOlapSync() {
-  console.log(`[${new Date().toISOString()}] Starting OLAP sync...`)
+async function runCashShiftSync() {
+  console.log(`[${new Date().toISOString()}] Starting cash shift sync...`)
   try {
-    const count = await syncOlap(config)
-    console.log(`  ✓ olap: ${count} rows`)
+    const count = await syncCashShifts(config)
+    console.log(`  ✓ cashshifts: ${count} reports updated`)
   } catch (err) {
-    console.error(`  ✗ olap:`, err instanceof Error ? err.message : err)
-  }
-  try {
-    const count = await syncRevenue()
-    console.log(`  ✓ revenue: ${count} reports synced`)
-  } catch (err) {
-    console.error(`  ✗ revenue:`, err instanceof Error ? err.message : err)
-  }
-  try {
-    const count = await syncIikoTotals()
-    console.log(`  ✓ iiko totals: ${count} reports updated`)
-  } catch (err) {
-    console.error(`  ✗ iiko totals:`, err instanceof Error ? err.message : err)
+    console.error(`  ✗ cashshifts:`, err instanceof Error ? err.message : err)
   }
 }
 
 // On startup: run both immediately
 await runReferenceSync()
-await runOlapSync()
+await runCashShiftSync()
 
 // Reference data: every 6 hours
 setInterval(runReferenceSync, 6 * 60 * 60 * 1000)
 
-// OLAP cache: every 5 minutes
-setInterval(runOlapSync, 5 * 60 * 1000)
+// Cash shift sync: every 5 minutes
+setInterval(runCashShiftSync, 5 * 60 * 1000)
 
-console.log('Worker running — reference sync every 6h, OLAP sync every 5m')
+console.log('Worker running — reference sync every 6h, cash shift sync every 5m')
