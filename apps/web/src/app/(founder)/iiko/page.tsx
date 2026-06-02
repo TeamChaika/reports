@@ -3,9 +3,20 @@ import { getProfileOrRedirect } from '@/lib/auth'
 import { createClient } from '@/lib/supabase/server'
 import { IikoFilters } from './IikoFilters'
 import { HourlyChart } from './HourlyChart'
+import { PayGroupBreakdown, type PayGroup } from './PayGroupBreakdown'
 
 function todayStr() {
   return new Date().toISOString().slice(0, 10)
+}
+
+// Maps an iiko pay-type name to a payment group code (mirrors the worker logic).
+function resolveGroupCode(payTypeName: string): string {
+  const s = payTypeName.toLowerCase()
+  if (s.includes('наличн')) return 'cash'
+  if (s.includes('карт') || s.includes('безнал')) return 'card'
+  if (s.includes('кальян')) return 'hookah'
+  if (s.includes('онлайн') || s.includes('сайт') || s.includes('доставк')) return 'online'
+  return 'other'
 }
 
 export default async function IikoPage({
@@ -75,14 +86,36 @@ export default async function IikoPage({
   const totalGuests = (hourRows ?? []).reduce((s, r) => s + Number(r.guests), 0)
   const avgCheck = totalOrders > 0 ? totalRevenue / totalOrders : 0
 
-  // By pay type
+  // By pay type → grouped into payment groups
+  const { data: paymentGroups } = await supabase
+    .from('payment_groups')
+    .select('code, name, sort_order')
+    .order('sort_order')
+  const groupName = new Map((paymentGroups ?? []).map(g => [g.code as string, g.name as string]))
+
   const payMap = new Map<string, number>()
   for (const r of payRows ?? []) {
     payMap.set(r.pay_type, (payMap.get(r.pay_type) ?? 0) + Number(r.dish_discount_sum))
   }
-  const payBreakdown = [...payMap.entries()]
-    .map(([name, total]) => ({ name, total }))
-    .filter(p => p.total > 0)
+
+  const groupAgg = new Map<string, { total: number; types: Map<string, number> }>()
+  for (const [type, total] of payMap) {
+    if (total <= 0) continue
+    const code = resolveGroupCode(type)
+    const g = groupAgg.get(code) ?? { total: 0, types: new Map<string, number>() }
+    g.total += total
+    g.types.set(type, (g.types.get(type) ?? 0) + total)
+    groupAgg.set(code, g)
+  }
+  const payGroupBreakdown: PayGroup[] = [...groupAgg.entries()]
+    .map(([code, g]) => ({
+      code,
+      name: groupName.get(code) ?? code,
+      total: g.total,
+      types: [...g.types.entries()]
+        .map(([name, t]) => ({ name, total: t }))
+        .sort((a, b) => b.total - a.total),
+    }))
     .sort((a, b) => b.total - a.total)
 
   // By establishment
@@ -116,7 +149,7 @@ export default async function IikoPage({
     orders: hourMap.get(h)?.orders ?? 0,
   }))
 
-  const maxPay = Math.max(...payBreakdown.map(p => p.total), 1)
+  const maxPay = Math.max(...payGroupBreakdown.map(p => p.total), 1)
 
   // Financials: markup % and discount %
   const fin = (sumRows ?? []).reduce(
@@ -232,30 +265,9 @@ export default async function IikoPage({
                 style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', padding: 'var(--space-5)' }}
               >
                 <h2 className="text-sm font-semibold mb-4" style={{ color: 'var(--color-text)' }}>
-                  По типам оплаты
+                  По группам оплат
                 </h2>
-                <div className="flex flex-col gap-3">
-                  {payBreakdown.map(p => (
-                    <div key={p.name}>
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-sm" style={{ color: 'var(--color-text)' }}>{p.name}</span>
-                        <span className="text-sm font-medium tabular-nums" style={{ color: 'var(--color-text)' }}>
-                          {Math.round(p.total).toLocaleString('ru')} ₽
-                        </span>
-                      </div>
-                      <div style={{ height: '6px', borderRadius: 'var(--radius-full)', background: 'var(--color-bg)' }}>
-                        <div
-                          style={{
-                            width: `${(p.total / maxPay) * 100}%`,
-                            height: '100%',
-                            borderRadius: 'var(--radius-full)',
-                            background: 'var(--color-accent)',
-                          }}
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                <PayGroupBreakdown groups={payGroupBreakdown} max={maxPay} />
               </div>
 
               {/* By establishment */}
