@@ -64,7 +64,7 @@ export async function createEmployeeAction(
 
   const { error: profileError } = await adminClient
     .from('profiles')
-    .upsert({ id: userId, full_name, role, is_active: true })
+    .upsert({ id: userId, full_name, role, is_active: true, must_change_password: true })
 
   if (profileError) {
     await adminClient.auth.admin.deleteUser(userId)

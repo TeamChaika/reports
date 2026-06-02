@@ -4,21 +4,20 @@ import { NextResponse, type NextRequest } from 'next/server'
 // Hostname → allowed path prefixes + post-auth redirect
 const DOMAIN_CONFIG: Record<string, { allowed: string[]; home: string }> = {
   'reports.chaika.team': {
-    allowed: ['/reports', '/login', '/auth'],
+    allowed: ['/reports', '/login', '/auth', '/change-password'],
     home: '/reports',
   },
   'office.chaika.team': {
-    allowed: ['/expenses', '/login', '/auth'],
+    allowed: ['/expenses', '/login', '/auth', '/change-password'],
     home: '/expenses',
   },
   'dashboard.chaika.team': {
-    allowed: ['/dashboard', '/employees', '/establishments', '/login', '/auth'],
+    allowed: ['/dashboard', '/employees', '/establishments', '/login', '/auth', '/change-password'],
     home: '/dashboard',
   },
 }
 
 function getDomainConfig(request: NextRequest) {
-  // Prefer x-forwarded-host (set by Timeweb reverse proxy) over the raw hostname
   const forwarded = request.headers.get('x-forwarded-host')
   const raw = forwarded ?? request.nextUrl.hostname
   const host = raw.split(':')[0] ?? raw
@@ -45,11 +44,11 @@ export async function middleware(request: NextRequest) {
     },
   )
 
-  // Refresh session — required for SSR auth to work correctly
   const { data: { user } } = await supabase.auth.getUser()
 
   const { pathname } = request.nextUrl
   const isAuth = pathname.startsWith('/login') || pathname.startsWith('/auth')
+  const isChangePassword = pathname.startsWith('/change-password')
 
   if (!user && !isAuth) {
     const url = request.nextUrl.clone()
@@ -61,12 +60,26 @@ export async function middleware(request: NextRequest) {
 
   if (user && isAuth) {
     const url = request.nextUrl.clone()
-    // Redirect to the domain's home, or /reports as fallback
     url.pathname = domainCfg?.home ?? '/reports'
     return NextResponse.redirect(url)
   }
 
-  // Enforce domain isolation: redirect to domain home if accessing wrong path
+  // Check must_change_password flag — redirect to change-password page
+  if (user && !isChangePassword) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('must_change_password')
+      .eq('id', user.id)
+      .single()
+
+    if (profile?.must_change_password) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/change-password'
+      return NextResponse.redirect(url)
+    }
+  }
+
+  // Enforce domain isolation
   if (domainCfg && !domainCfg.allowed.some(p => pathname.startsWith(p))) {
     const url = request.nextUrl.clone()
     url.pathname = domainCfg.home
