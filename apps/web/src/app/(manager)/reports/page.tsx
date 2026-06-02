@@ -25,7 +25,7 @@ export default async function ReportsPage() {
   const { data: reports } = await supabase
     .from('daily_reports')
     .select(`
-      id, business_date, status, revenue_total, iiko_diff, submitted_at, updated_at,
+      id, business_date, status, revenue_total, iiko_diff, iiko_total, iiko_shift_closed,
       establishments(name)
     `)
     .order('business_date', { ascending: false })
@@ -82,19 +82,33 @@ export default async function ReportsPage() {
                       )}
                     </div>
                   </div>
-                  {r.iiko_diff != null && Math.abs(Number(r.iiko_diff)) > 0 && (
-                    <p
-                      className="text-xs mt-2 tabular-nums"
-                      style={{
-                        color: Number(r.iiko_diff) > 0
-                          ? 'var(--color-success)'
-                          : 'var(--color-danger)',
-                      }}
-                    >
-                      Расхождение с iiko: {Number(r.iiko_diff) > 0 ? '+' : ''}
-                      {Number(r.iiko_diff).toLocaleString('ru')} ₽
-                    </p>
-                  )}
+                  <div className="flex items-center justify-between mt-2">
+                    {r.iiko_total != null ? (
+                      <span
+                        className="text-xs"
+                        style={{ color: r.iiko_shift_closed ? 'var(--color-success)' : 'var(--color-warning)' }}
+                      >
+                        {r.iiko_shift_closed ? '● Смена закрыта' : '○ Смена открыта'}
+                      </span>
+                    ) : (
+                      <span className="text-xs" style={{ color: 'var(--color-text-disabled)' }}>
+                        iiko нет данных
+                      </span>
+                    )}
+                    {r.iiko_diff != null && Math.abs(Number(r.iiko_diff)) > 0 && (
+                      <p
+                        className="text-xs tabular-nums"
+                        style={{
+                          color: Number(r.iiko_diff) > 0
+                            ? 'var(--color-success)'
+                            : 'var(--color-danger)',
+                        }}
+                      >
+                        Расхождение: {Number(r.iiko_diff) > 0 ? '+' : ''}
+                        {Number(r.iiko_diff).toLocaleString('ru')} ₽
+                      </p>
+                    )}
+                  </div>
                 </Link>
               )
             })}
