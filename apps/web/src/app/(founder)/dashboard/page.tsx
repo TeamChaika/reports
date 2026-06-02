@@ -5,6 +5,8 @@ import { DateFilter } from './DateFilter'
 import { ReportStatus } from './ReportStatus'
 import { RevenueTable, type RevenueRow } from './RevenueTable'
 import { ExpenseBreakdown, type ExpenseGroupRow } from './ExpenseBreakdown'
+import { AiAnalysis } from './AiAnalysis'
+import { AccountingFilesCard, type AccountingFile } from './AccountingFilesCard'
 
 function todayStr() {
   return new Date().toISOString().slice(0, 10)
@@ -52,6 +54,13 @@ export default async function DashboardPage({
         .eq('is_active', true)
         .order('sort_order'),
     ])
+
+  const { data: accountingFiles } = await supabase
+    .from('accounting_files')
+    .select('id, business_date, type, file_name')
+    .gte('business_date', from)
+    .lte('business_date', to)
+    .order('business_date', { ascending: false })
 
   type ReportRecord = {
     id: string
@@ -244,6 +253,12 @@ export default async function DashboardPage({
             total={totalExpenses}
           />
         )}
+
+        {/* Accounting files (3rd source) */}
+        <AccountingFilesCard files={(accountingFiles ?? []) as AccountingFile[]} />
+
+        {/* AI analysis combining all three sources */}
+        <AiAnalysis from={from} to={to} />
 
       </div>
     </main>
