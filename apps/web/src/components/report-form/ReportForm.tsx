@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useTransition, useState, useOptimistic, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { reportFormSchema } from '@shift-reports/shared'
@@ -67,14 +68,16 @@ export function ReportForm({
 
   const { save, status: saveStatus } = useAutosave(initialReportId ?? null, saveDraftAction)
   const [isPending, startTransition] = useTransition()
+  const [submitted, setSubmitted] = useState(false)
+  const router = useRouter()
 
-  // Autosave on form change
+  // Autosave on form change (stops once the report has been submitted)
   useEffect(() => {
     const { unsubscribe } = form.watch((values) => {
-      if (initialReportId) save(values as ReportFormValues)
+      if (initialReportId && !submitted) save(values as ReportFormValues)
     })
     return unsubscribe
-  }, [form, initialReportId, save])
+  }, [form, initialReportId, save, submitted])
 
   const payGroupAmounts = form.watch('payGroupAmounts')
   const revenueTotal = Object.values(payGroupAmounts ?? {}).reduce(
@@ -153,7 +156,13 @@ export function ReportForm({
       startTransition(() => createDraftAction(values.establishmentId, values.businessDate))
     } else {
       const result = await submitReportAction(initialReportId, values)
-      if (!result.ok) alert(result.error)
+      if (result.ok) {
+        // Stop autosave (report is no longer a draft) and leave the edit page
+        setSubmitted(true)
+        router.push('/reports')
+      } else {
+        alert(result.error)
+      }
     }
   })
 
