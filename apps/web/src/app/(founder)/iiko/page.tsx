@@ -9,12 +9,12 @@ function todayStr() {
   return new Date().toISOString().slice(0, 10)
 }
 
-// Maps an iiko pay-type name to a payment group code (mirrors the worker logic).
+// Maps an iiko pay-type name to a payment group code.
+// Кальяны относятся к безналичным.
 function resolveGroupCode(payTypeName: string): string {
   const s = payTypeName.toLowerCase()
   if (s.includes('наличн')) return 'cash'
-  if (s.includes('карт') || s.includes('безнал')) return 'card'
-  if (s.includes('кальян')) return 'hookah'
+  if (s.includes('карт') || s.includes('безнал') || s.includes('кальян')) return 'card'
   if (s.includes('онлайн') || s.includes('сайт') || s.includes('доставк')) return 'online'
   return 'other'
 }
