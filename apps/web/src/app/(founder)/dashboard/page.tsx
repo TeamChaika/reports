@@ -34,7 +34,7 @@ export default async function DashboardPage({
     await Promise.all([
       supabase
         .from('establishments')
-        .select('id, name')
+        .select('id, name, iiko_department_id')
         .eq('is_active', true)
         .order('name'),
       supabase
@@ -61,6 +61,18 @@ export default async function DashboardPage({
     .gte('business_date', from)
     .lte('business_date', to)
     .order('business_date', { ascending: false })
+
+  // Live iiko revenue (OLAP net) per establishment+date for real-time reconciliation
+  const { data: iikoSummary } = await supabase
+    .from('iiko_summary_cache')
+    .select('department_id, business_date, net')
+    .gte('business_date', from)
+    .lte('business_date', to)
+  const olapNet = new Map<string, number>()
+  for (const r of iikoSummary ?? []) {
+    const key = `${r.department_id}|${r.business_date}`
+    olapNet.set(key, (olapNet.get(key) ?? 0) + Number(r.net))
+  }
 
   type ReportRecord = {
     id: string
@@ -122,7 +134,17 @@ export default async function DashboardPage({
     .map(est => {
       const estReports = submittedReports.filter(r => r.establishment_id === est.id)
       if (estReports.length === 0) return null
-      const iikoAvailable = estReports.some(r => r.iiko_total !== null)
+      // Live iiko revenue from OLAP net, matched to the report dates
+      const deptId = (est as { iiko_department_id: string | null }).iiko_department_id
+      let iikoSum = 0
+      let iikoAvailable = false
+      for (const r of estReports) {
+        const key = `${deptId}|${r.business_date}`
+        if (olapNet.has(key)) {
+          iikoSum += olapNet.get(key)!
+          iikoAvailable = true
+        }
+      }
       return {
         id: est.id,
         name: est.name,
@@ -130,9 +152,7 @@ export default async function DashboardPage({
         card: estReports.reduce((s, r) => s + r.revenue_card, 0),
         other: estReports.reduce((s, r) => s + r.revenue_other, 0),
         total: estReports.reduce((s, r) => s + r.revenue_total, 0),
-        iikoTotal: iikoAvailable
-          ? estReports.reduce((s, r) => s + (r.iiko_total ?? 0), 0)
-          : null,
+        iikoTotal: iikoAvailable ? iikoSum : null,
         iikoAvailable,
         cashSubmitted: estReports.some(r => r.cash_submitted !== null)
           ? estReports.reduce((s, r) => s + (r.cash_submitted ?? 0), 0)
