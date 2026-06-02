@@ -17,9 +17,11 @@ const DOMAIN_CONFIG: Record<string, { allowed: string[]; home: string }> = {
   },
 }
 
-function getDomainConfig(hostname: string) {
-  // Strip port for local dev (e.g. localhost:3000)
-  const host = hostname.split(':')[0] ?? hostname
+function getDomainConfig(request: NextRequest) {
+  // Prefer x-forwarded-host (set by Timeweb reverse proxy) over the raw hostname
+  const forwarded = request.headers.get('x-forwarded-host')
+  const raw = forwarded ?? request.nextUrl.hostname
+  const host = raw.split(':')[0] ?? raw
   return DOMAIN_CONFIG[host] ?? null
 }
 
@@ -55,7 +57,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  const domainCfg = getDomainConfig(request.nextUrl.hostname)
+  const domainCfg = getDomainConfig(request)
 
   if (user && isAuth) {
     const url = request.nextUrl.clone()
