@@ -112,9 +112,6 @@ importers:
 
   apps/worker:
     dependencies:
-      '@shift-reports/shared':
-        specifier: workspace:*
-        version: link:../../packages/shared
       '@supabase/supabase-js':
         specifier: ^2.49.4
         version: 2.106.1
