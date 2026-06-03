@@ -12,7 +12,7 @@ const DOMAIN_CONFIG: Record<string, { allowed: string[]; home: string }> = {
     home: '/expenses',
   },
   'dashboard.chaika.team': {
-    allowed: ['/dashboard', '/iiko', '/employees', '/establishments', '/login', '/auth', '/change-password'],
+    allowed: ['/dashboard', '/iiko', '/employees', '/establishments', '/approvers', '/login', '/auth', '/change-password'],
     home: '/dashboard',
   },
 }

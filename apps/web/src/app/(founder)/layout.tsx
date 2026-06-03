@@ -34,6 +34,7 @@ export default function FounderLayout({ children }: { children: React.ReactNode 
               { href: '/iiko', label: 'iiko' },
               { href: '/employees', label: 'Сотрудники' },
               { href: '/establishments', label: 'Заведения' },
+              { href: '/approvers', label: 'Согласующие' },
               { href: '/expenses', label: 'Бухгалтерия' },
             ].map(link => (
               <Link
