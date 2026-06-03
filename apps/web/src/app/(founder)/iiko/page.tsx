@@ -307,13 +307,13 @@ export default async function IikoPage({
                     {estBreakdown.map(e => (
                       <tr key={e.name}>
                         <td style={{ color: 'var(--color-text)' }}>{e.name}</td>
-                        <td className="tabular-nums" style={{ textAlign: 'right', color: 'var(--color-text)' }}>
+                        <td className="tabular-nums" style={{ textAlign: 'right', whiteSpace: 'nowrap', color: 'var(--color-text)' }}>
                           {Math.round(e.revenue).toLocaleString('ru')} ₽
                         </td>
                         <td className="tabular-nums" style={{ textAlign: 'right', color: 'var(--color-text-muted)' }}>
                           {e.orders}
                         </td>
-                        <td className="tabular-nums" style={{ textAlign: 'right', color: 'var(--color-text-muted)' }}>
+                        <td className="tabular-nums" style={{ textAlign: 'right', whiteSpace: 'nowrap', color: 'var(--color-text-muted)' }}>
                           {Math.round(e.avg).toLocaleString('ru')} ₽
                         </td>
                         <td className="tabular-nums" style={{ textAlign: 'right', color: e.markup != null ? 'var(--color-success)' : 'var(--color-text-disabled)' }}>
