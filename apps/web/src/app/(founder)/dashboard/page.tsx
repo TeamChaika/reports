@@ -105,16 +105,29 @@ export default async function DashboardPage({
   const submittedReports = typedReports.filter(r => r.status !== 'draft')
   const submittedIds = submittedReports.map(r => r.id)
 
-  const { data: expenses } = submittedIds.length > 0
+  const { data: reportExpenses } = submittedIds.length > 0
     ? await supabase
         .from('report_expenses')
-        .select('report_id, amount, group_id')
+        .select('amount, group_id')
         .in('report_id', submittedIds)
     : { data: [] }
 
+  // Accountant-entered expenses (by expense_date) — company-wide totals/category
+  const { data: accExpenses } = await supabase
+    .from('accounting_expenses')
+    .select('total_amount, group_id')
+    .gte('expense_date', from)
+    .lte('expense_date', to)
+
+  // Unified expense list ({ amount, group_id }) from both sources
+  const expenses: { amount: number; group_id: string | null }[] = [
+    ...(reportExpenses ?? []).map(e => ({ amount: Number(e.amount), group_id: e.group_id })),
+    ...(accExpenses ?? []).map(e => ({ amount: Number(e.total_amount), group_id: e.group_id })),
+  ]
+
   // ── KPIs ──────────────────────────────────────────────────────────────────
   const totalRevenue = submittedReports.reduce((s, r) => s + r.revenue_total, 0)
-  const totalExpenses = (expenses ?? []).reduce((s, e) => s + Number(e.amount), 0)
+  const totalExpenses = expenses.reduce((s, e) => s + e.amount, 0)
 
   // ── Establishment status grid ─────────────────────────────────────────────
   const establishmentStatus = (establishments ?? []).map(est => {

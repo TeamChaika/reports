@@ -57,16 +57,58 @@ export default async function ExpenseReportPage({
   }
   const expenses = (expensesRaw ?? []) as unknown as ExpRow[]
 
-  const total = expenses.reduce((s, e) => s + Number(e.amount), 0)
+  // ── Source 2: accounting expenses (allocations per establishment) ─────────
+  let accQuery = supabase
+    .from('accounting_expense_allocations')
+    .select(`
+      amount, establishment_id, establishments(name),
+      accounting_expenses!inner(expense_date, name, group_id)
+    `)
+    .gte('accounting_expenses.expense_date', from)
+    .lte('accounting_expenses.expense_date', to)
+  if (est) accQuery = accQuery.eq('establishment_id', est)
+  const { data: accAllocRaw } = await accQuery
+
+  type AccAlloc = {
+    amount: number
+    establishments: { name: string } | null
+    accounting_expenses: { expense_date: string; name: string; group_id: string | null }
+  }
+  const accAlloc = (accAllocRaw ?? []) as unknown as AccAlloc[]
+
+  // ── Unified detail list from both sources ─────────────────────────────────
+  const details: DetailRow[] = []
+  for (const e of expenses) {
+    details.push({
+      date: e.daily_reports?.business_date ?? '',
+      establishment: e.daily_reports?.establishments?.name ?? '—',
+      name: e.name,
+      category: e.group_id ? (groupName.get(e.group_id) ?? '—') : 'Без категории',
+      approver: e.approver_name ?? '—',
+      amount: Number(e.amount),
+    })
+  }
+  for (const a of accAlloc) {
+    details.push({
+      date: a.accounting_expenses.expense_date,
+      establishment: a.establishments?.name ?? '—',
+      name: a.accounting_expenses.name,
+      category: a.accounting_expenses.group_id ? (groupName.get(a.accounting_expenses.group_id) ?? '—') : 'Без категории',
+      approver: 'бухгалтерия',
+      amount: Number(a.amount),
+    })
+  }
+  details.sort((a, b) => b.date.localeCompare(a.date))
+
+  const total = details.reduce((s, d) => s + d.amount, 0)
 
   // By category
   const catMap = new Map<string, { total: number; count: number }>()
-  for (const e of expenses) {
-    const key = e.group_id ? (groupName.get(e.group_id) ?? '—') : 'Без категории'
-    const c = catMap.get(key) ?? { total: 0, count: 0 }
-    c.total += Number(e.amount)
+  for (const d of details) {
+    const c = catMap.get(d.category) ?? { total: 0, count: 0 }
+    c.total += d.amount
     c.count += 1
-    catMap.set(key, c)
+    catMap.set(d.category, c)
   }
   const byCategory = [...catMap.entries()]
     .map(([name, v]) => ({ name, total: v.total, count: v.count }))
@@ -74,28 +116,15 @@ export default async function ExpenseReportPage({
 
   // By establishment
   const estMap = new Map<string, { total: number; count: number }>()
-  for (const e of expenses) {
-    const key = e.daily_reports?.establishments?.name ?? '—'
-    const c = estMap.get(key) ?? { total: 0, count: 0 }
-    c.total += Number(e.amount)
+  for (const d of details) {
+    const c = estMap.get(d.establishment) ?? { total: 0, count: 0 }
+    c.total += d.amount
     c.count += 1
-    estMap.set(key, c)
+    estMap.set(d.establishment, c)
   }
   const byEstablishment = [...estMap.entries()]
     .map(([name, v]) => ({ name, total: v.total, count: v.count }))
     .sort((a, b) => b.total - a.total)
-
-  // Detail list
-  const details: DetailRow[] = expenses
-    .map(e => ({
-      date: e.daily_reports?.business_date ?? '',
-      establishment: e.daily_reports?.establishments?.name ?? '—',
-      name: e.name,
-      category: e.group_id ? (groupName.get(e.group_id) ?? '—') : 'Без категории',
-      approver: e.approver_name ?? '—',
-      amount: Number(e.amount),
-    }))
-    .sort((a, b) => b.date.localeCompare(a.date))
 
   const selectedEst = (establishments ?? []).find(e => e.id === est)
   const maxCat = Math.max(...byCategory.map(c => c.total), 1)

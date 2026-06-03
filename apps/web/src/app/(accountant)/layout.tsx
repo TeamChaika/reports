@@ -36,6 +36,13 @@ export default function AccountantLayout({ children }: { children: React.ReactNo
             Расходы
           </Link>
           <Link
+            href="/accounting-expenses"
+            className="text-sm transition-colors"
+            style={{ color: 'var(--color-text-muted)' }}
+          >
+            Расходы бухгалтерии
+          </Link>
+          <Link
             href="/expense-report"
             className="text-sm transition-colors"
             style={{ color: 'var(--color-text-muted)' }}
