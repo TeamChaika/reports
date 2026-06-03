@@ -4,7 +4,23 @@ import { randomUUID } from 'crypto'
 import { revalidatePath } from 'next/cache'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { getUserOrRedirect } from '@/lib/auth'
-import { createIikoWaiter } from '@/lib/iiko'
+import { createIikoWaiter, updateIikoWaiter } from '@/lib/iiko'
+
+// Department codes of the establishments the current manager is assigned to
+async function managerDeptCodes(userId: string): Promise<Set<string>> {
+  const supabase = await createClient()
+  const { data: links } = await supabase
+    .from('establishment_users')
+    .select('establishments(iiko_department_id)')
+    .eq('user_id', userId)
+  const deptIds = (links ?? [])
+    .map(l => (l.establishments as unknown as { iiko_department_id: string | null })?.iiko_department_id)
+    .filter(Boolean) as string[]
+  if (deptIds.length === 0) return new Set()
+  const admin = createAdminClient()
+  const { data: depts } = await admin.from('iiko_departments').select('code').in('id', deptIds)
+  return new Set((depts ?? []).map(d => String(d.code)))
+}
 
 export type CreateWaiterInput = {
   name: string
@@ -99,6 +115,63 @@ export async function createWaiterAction(
     deleted: false,
     supplier: false,
   })
+
+  revalidatePath('/waiters')
+  return { ok: true }
+}
+
+export type UpdateWaiterInput = {
+  iikoId: string
+  name: string             // base name (without _sberId)
+  sberTipsId?: string | undefined
+  cardNumber?: string | undefined
+  pinCode?: string | undefined  // empty → keep current pin
+}
+
+export async function updateWaiterAction(
+  input: UpdateWaiterInput,
+): Promise<{ ok: boolean; error?: string }> {
+  const user = await getUserOrRedirect()
+
+  const name = input.name?.trim() ?? ''
+  if (name.length < 2) return { ok: false, error: 'Укажите имя' }
+
+  const sber = (input.sberTipsId ?? '').trim()
+  if (sber && !/^\d{6,}$/.test(sber)) return { ok: false, error: 'Неверный идентификатор Сбер Чаевых' }
+
+  const pin = (input.pinCode ?? '').trim()
+  if (pin && !/^\d{4,6}$/.test(pin)) return { ok: false, error: 'Пин-код — 4–6 цифр' }
+
+  const card = (input.cardNumber ?? '').trim()
+  if (card && !/^[\w-]{1,40}$/.test(card)) return { ok: false, error: 'Неверный номер карты' }
+
+  const admin = createAdminClient()
+
+  // The waiter must belong to one of the manager's establishments
+  const { data: emp } = await admin
+    .from('iiko_employees')
+    .select('id, department_codes, main_role_code')
+    .eq('id', input.iikoId)
+    .single()
+  if (!emp) return { ok: false, error: 'Официант не найден' }
+  if (emp.main_role_code !== 'OP1') return { ok: false, error: 'Можно редактировать только официантов (OP1)' }
+
+  const allowed = await managerDeptCodes(user.id)
+  if (!allowed.has(String(emp.department_codes))) {
+    return { ok: false, error: 'Нет доступа к этому официанту' }
+  }
+
+  const systemName = sber ? `${name}_${sber}` : name
+
+  const result = await updateIikoWaiter(input.iikoId, {
+    name: systemName,
+    cardNumber: card,
+    pinCode: pin || undefined,
+  })
+  if (!result.ok) return { ok: false, error: result.error ?? 'iiko отклонил изменение' }
+
+  // Mirror the visible fields locally (pin/card aren't stored in iiko_employees)
+  await admin.from('iiko_employees').update({ name: systemName }).eq('id', input.iikoId)
 
   revalidatePath('/waiters')
   return { ok: true }

@@ -1,6 +1,7 @@
 import { getUserOrRedirect } from '@/lib/auth'
 import { createClient } from '@/lib/supabase/server'
 import { WaiterForm } from './WaiterForm'
+import { WaitersManager, type Waiter } from './WaitersManager'
 
 export default async function WaitersPage() {
   const user = await getUserOrRedirect()
@@ -53,34 +54,14 @@ export default async function WaitersPage() {
 
         <WaiterForm establishments={establishments.map(e => ({ id: e.id, name: e.name }))} />
 
-        <div className="rounded-xl overflow-x-auto" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', padding: 'var(--space-5)' }}>
-          <h2 className="text-sm font-semibold mb-4" style={{ color: 'var(--color-text)' }}>
-            Официанты заведений
-            <span className="text-xs ml-1.5" style={{ color: 'var(--color-text-disabled)' }}>{(waiters ?? []).length}</span>
-          </h2>
-          {(waiters ?? []).length === 0 ? (
-            <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>Официантов пока нет</p>
-          ) : (
-            <table className="data-table" style={{ minWidth: '360px' }}>
-              <thead>
-                <tr>
-                  <th>Имя</th>
-                  <th>Таб. №</th>
-                  <th>Заведение</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(waiters ?? []).map(w => (
-                  <tr key={w.id}>
-                    <td style={{ color: 'var(--color-text)' }}>{w.name}</td>
-                    <td style={{ color: 'var(--color-text-muted)' }}>{w.code ?? '—'}</td>
-                    <td style={{ color: 'var(--color-text-muted)' }}>{codeToEst.get(String(w.department_codes)) ?? '—'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
+        <WaitersManager
+          waiters={(waiters ?? []).map((w): Waiter => ({
+            id: w.id,
+            name: w.name,
+            code: w.code ?? null,
+            establishment: codeToEst.get(String(w.department_codes)) ?? '—',
+          }))}
+        />
 
       </div>
     </main>

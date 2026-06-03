@@ -81,3 +81,51 @@ export async function createIikoWaiter(w: NewWaiter): Promise<{ ok: boolean; err
     return { ok: false, error: err instanceof Error ? err.message : 'iiko request failed' }
   }
 }
+
+export type WaiterUpdate = {
+  name?: string | undefined        // full system name (incl. _sberId)
+  cardNumber?: string | undefined  // empty string clears the card
+  pinCode?: string | undefined     // omit to keep the current pin
+}
+
+// Partial update of an existing employee via POST /employees/byId/{UUID}.
+// Only the provided fields change; everything else is left untouched.
+export async function updateIikoWaiter(
+  id: string,
+  fields: WaiterUpdate,
+): Promise<{ ok: boolean; error?: string }> {
+  const base = process.env['IIKO_BASE_URL']
+  if (!base) return { ok: false, error: 'iiko не настроен' }
+
+  let key: string
+  try {
+    key = await authenticate()
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : 'iiko auth error' }
+  }
+
+  const body = new URLSearchParams()
+  if (fields.name !== undefined) body.set('name', fields.name)
+  if (fields.cardNumber !== undefined) body.set('cardNumber', fields.cardNumber)
+  if (fields.pinCode) body.set('pinCode', fields.pinCode)
+
+  if ([...body.keys()].length === 0) return { ok: true } // nothing to change
+
+  try {
+    const res = await fetch(`${base}/resto/api/employees/byId/${id}?key=${key}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body,
+      signal: AbortSignal.timeout(30_000),
+    })
+    if (res.status === 200 || res.status === 201) return { ok: true }
+
+    const errText = await res.text()
+    if (errText.includes('ПИН') || errText.toLowerCase().includes('pin')) {
+      return { ok: false, error: 'Этот пин-код уже занят — выберите другой' }
+    }
+    return { ok: false, error: `iiko ${res.status}: ${errText.slice(0, 200)}` }
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : 'iiko request failed' }
+  }
+}
