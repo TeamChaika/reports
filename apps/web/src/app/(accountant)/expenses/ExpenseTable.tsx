@@ -1,5 +1,6 @@
 'use client'
 
+import { fmtNum } from '@/lib/format'
 import { useState, useTransition, useOptimistic } from 'react'
 import { assignCategoryAction, removeCategoryAction } from './actions'
 
@@ -83,7 +84,7 @@ export function ExpenseTable({ expenses, expenseGroups }: Props) {
           ))}
         </div>
         <span className="text-sm font-medium text-text-muted tabular-nums">
-          {visible.length} позиций · {totalAmount.toLocaleString('ru')} ₽
+          {visible.length} позиций · {fmtNum(totalAmount)} ₽
         </span>
       </div>
 
@@ -117,7 +118,7 @@ export function ExpenseTable({ expenses, expenseGroups }: Props) {
             >
               <span className="text-sm font-semibold text-text">{label}</span>
               <span className="text-sm tabular-nums text-text-muted">
-                {groupTotal.toLocaleString('ru')} ₽
+                {fmtNum(groupTotal)} ₽
               </span>
             </div>
 
@@ -145,7 +146,7 @@ export function ExpenseTable({ expenses, expenseGroups }: Props) {
 
                   {/* Amount */}
                   <span className="text-sm font-semibold shrink-0 w-24 text-right tabular-nums text-text">
-                    {expense.amount.toLocaleString('ru')} ₽
+                    {fmtNum(expense.amount)} ₽
                   </span>
 
                   {/* Category selector */}

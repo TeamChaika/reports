@@ -1,5 +1,6 @@
 'use client'
 
+import { fmtNum } from '@/lib/format'
 import { useState } from 'react'
 
 type HourPoint = { hour: number; revenue: number; orders: number }
@@ -77,7 +78,7 @@ export function HourlyChart({ data }: { data: HourPoint[] }) {
                     color: 'var(--color-text)',
                   }}
                 >
-                  {Math.round(d.revenue).toLocaleString('ru')} ₽ · {d.orders} чек.
+                  {fmtNum(d.revenue)} ₽ · {d.orders} чек.
                 </div>
               ) : (
                 <span

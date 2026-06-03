@@ -7,6 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { reportFormSchema } from '@shift-reports/shared'
 import type { ReportFormValues, AddExpenseValues } from '@shift-reports/shared'
 import { useAutosave } from '@/hooks/useAutosave'
+import { fmtNum } from '@/lib/format'
 import {
   saveDraftAction,
   submitReportAction,
@@ -236,7 +237,7 @@ export function ReportForm({
           >
             <span className="text-sm font-semibold text-text">Итого</span>
             <span className="text-sm font-semibold tabular-nums" style={{ color: 'var(--color-accent)' }}>
-              {revenueTotal.toLocaleString('ru')} ₽
+              {fmtNum(revenueTotal)} ₽
             </span>
           </div>
         </div>
@@ -279,7 +280,7 @@ export function ReportForm({
             <h2 className="text-sm font-semibold text-text">Расходы</h2>
             {optimisticExpenses.length > 0 && (
               <p className="text-xs mt-0.5 text-text-muted tabular-nums">
-                Итого: {expensesTotal.toLocaleString('ru')} ₽
+                Итого: {fmtNum(expensesTotal)} ₽
               </p>
             )}
           </div>
@@ -386,7 +387,7 @@ export function ReportForm({
                 </p>
               </div>
               <span className="text-sm font-medium shrink-0 tabular-nums text-text">
-                {e.amount.toLocaleString('ru')} ₽
+                {fmtNum(e.amount)} ₽
               </span>
               {initialReportId && (
                 <button
@@ -430,7 +431,7 @@ export function ReportForm({
         >
           <div className="flex items-center gap-3">
             <p className="text-sm font-semibold tabular-nums" style={{ color: 'var(--color-text)' }}>
-              {revenueTotal.toLocaleString('ru')} ₽
+              {fmtNum(revenueTotal)} ₽
             </p>
             {statusLabel && (
               <span

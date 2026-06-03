@@ -1,5 +1,6 @@
 'use client'
 
+import { fmtNum } from '@/lib/format'
 import { useState, useTransition } from 'react'
 import { createAccountingExpenseAction, type Allocation } from './actions'
 
@@ -183,7 +184,7 @@ export function AccountingExpenseForm({ establishments, groups }: { establishmen
         {selectedIds.length > 0 && (
           <p className="text-xs mt-2 tabular-nums" style={{ color: Math.abs(remaining) < 1 ? 'var(--color-success)' : 'var(--color-warning)' }}>
             {mode === 'amount'
-              ? `Распределено ${Math.round(allocSum).toLocaleString('ru')} из ${Math.round(totalNum).toLocaleString('ru')} ₽ · остаток ${Math.round(remaining).toLocaleString('ru')} ₽`
+              ? `Распределено ${fmtNum(allocSum)} из ${fmtNum(totalNum)} ₽ · остаток ${fmtNum(remaining)} ₽`
               : `Сумма процентов: ${allocSum.toFixed(0)}% · осталось ${remaining.toFixed(0)}%`}
           </p>
         )}

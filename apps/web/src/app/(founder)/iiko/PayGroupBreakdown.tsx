@@ -1,5 +1,6 @@
 'use client'
 
+import { fmtNum } from '@/lib/format'
 import { useState } from 'react'
 
 export type PayGroup = {
@@ -62,7 +63,7 @@ function GroupRow({ group, max }: { group: PayGroup; max: number }) {
             )}
           </span>
           <span className="text-sm font-medium tabular-nums" style={{ color: 'var(--color-text)' }}>
-            {Math.round(group.total).toLocaleString('ru')} ₽
+            {fmtNum(group.total)} ₽
           </span>
         </div>
         <Bar value={group.total} max={max} color="var(--color-accent)" />
@@ -75,7 +76,7 @@ function GroupRow({ group, max }: { group: PayGroup; max: number }) {
               <div className="flex items-center justify-between mb-0.5 gap-2">
                 <span className="text-xs truncate-1" style={{ color: 'var(--color-text-muted)' }}>{t.name}</span>
                 <span className="text-xs tabular-nums shrink-0" style={{ color: 'var(--color-text-muted)' }}>
-                  {Math.round(t.total).toLocaleString('ru')} ₽
+                  {fmtNum(t.total)} ₽
                 </span>
               </div>
               <Bar value={t.total} max={maxType} color="var(--color-accent-subtle)" />

@@ -1,5 +1,6 @@
 'use client'
 
+import { fmtNum } from '@/lib/format'
 import { useTransition } from 'react'
 import { deleteAccountingExpenseAction } from './actions'
 
@@ -42,7 +43,7 @@ export function AccountingExpensesList({ items }: { items: ExpenseItem[] }) {
             </div>
             <div className="flex items-center gap-2 shrink-0">
               <span className="text-sm font-semibold tabular-nums" style={{ color: 'var(--color-text)' }}>
-                {Math.round(e.total_amount).toLocaleString('ru')} ₽
+                {fmtNum(e.total_amount)} ₽
               </span>
               <button
                 type="button"
@@ -61,7 +62,7 @@ export function AccountingExpensesList({ items }: { items: ExpenseItem[] }) {
             <div className="flex flex-wrap gap-1.5 mt-2 pt-2" style={{ borderTop: '1px solid var(--color-border-subtle)' }}>
               {e.allocations.map((a, i) => (
                 <span key={i} className="tag tabular-nums">
-                  {a.establishment}: {Math.round(a.amount).toLocaleString('ru')} ₽
+                  {a.establishment}: {fmtNum(a.amount)} ₽
                 </span>
               ))}
             </div>
