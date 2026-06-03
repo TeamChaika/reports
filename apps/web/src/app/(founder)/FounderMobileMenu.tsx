@@ -97,6 +97,16 @@ export default function FounderMobileMenu() {
             Согласующие
           </Link>
           <Link
+            href="/waiter-log"
+            className="text-sm px-4 py-2.5 transition-colors"
+            style={{ color: 'var(--color-text-muted)' }}
+            onClick={close}
+            onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--color-text)' }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--color-text-muted)' }}
+          >
+            Журнал официантов
+          </Link>
+          <Link
             href="/expenses"
             className="text-sm px-4 py-2.5 transition-colors"
             style={{ color: 'var(--color-text-muted)' }}

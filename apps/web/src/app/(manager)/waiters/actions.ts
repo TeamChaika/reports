@@ -116,6 +116,16 @@ export async function createWaiterAction(
     supplier: false,
   })
 
+  // Audit: who created which waiter
+  await admin.from('waiter_audit_log').insert({
+    action: 'create',
+    iiko_employee_id: id,
+    employee_name: systemName,
+    establishment_id: input.establishmentId,
+    performed_by: user.id,
+    details: { code, has_sber: Boolean(sber), has_card: Boolean(card) },
+  })
+
   revalidatePath('/waiters')
   return { ok: true }
 }
@@ -172,6 +182,32 @@ export async function updateWaiterAction(
 
   // Mirror the visible fields locally (pin/card aren't stored in iiko_employees)
   await admin.from('iiko_employees').update({ name: systemName }).eq('id', input.iikoId)
+
+  // Resolve establishment by the waiter's department code for the audit row
+  const { data: depRow } = await admin
+    .from('iiko_departments')
+    .select('id')
+    .eq('code', String(emp.department_codes))
+    .single()
+  let estId: string | null = null
+  if (depRow) {
+    const { data: estRow } = await admin
+      .from('establishments')
+      .select('id')
+      .eq('iiko_department_id', depRow.id)
+      .single()
+    estId = estRow?.id ?? null
+  }
+
+  // Audit: who edited which waiter and what changed
+  await admin.from('waiter_audit_log').insert({
+    action: 'update',
+    iiko_employee_id: input.iikoId,
+    employee_name: systemName,
+    establishment_id: estId,
+    performed_by: user.id,
+    details: { name_changed: true, sber_changed: Boolean(sber), card_changed: Boolean(card), pin_changed: Boolean(pin) },
+  })
 
   revalidatePath('/waiters')
   return { ok: true }
