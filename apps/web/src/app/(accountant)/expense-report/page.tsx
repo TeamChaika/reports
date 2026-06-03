@@ -62,8 +62,9 @@ export default async function ExpenseReportPage({
     .from('accounting_expense_allocations')
     .select(`
       amount, establishment_id, establishments(name),
-      accounting_expenses!inner(expense_date, name, group_id)
+      accounting_expenses!inner(expense_date, name, group_id, is_deleted)
     `)
+    .eq('accounting_expenses.is_deleted', false)
     .gte('accounting_expenses.expense_date', from)
     .lte('accounting_expenses.expense_date', to)
   if (est) accQuery = accQuery.eq('establishment_id', est)

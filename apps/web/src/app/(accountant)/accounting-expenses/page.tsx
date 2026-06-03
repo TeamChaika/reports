@@ -37,6 +37,7 @@ export default async function AccountingExpensesPage({
         id, expense_date, name, payment_type, total_amount, group_id,
         accounting_expense_allocations(amount, establishments(name))
       `)
+      .eq('is_deleted', false)
       .gte('expense_date', from)
       .lte('expense_date', to)
       .order('expense_date', { ascending: false }),

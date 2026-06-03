@@ -92,8 +92,12 @@ export async function deleteAccountingExpenseAction(
   const profile = await getProfileOrRedirect()
   if (!ALLOWED_ROLES.includes(profile.role)) return { ok: false, error: 'Недостаточно прав' }
 
+  // Soft delete — keeps the record (and allocations) in the DB for audit
   const admin = createAdminClient()
-  const { error } = await admin.from('accounting_expenses').delete().eq('id', id)
+  const { error } = await admin
+    .from('accounting_expenses')
+    .update({ is_deleted: true })
+    .eq('id', id)
   if (error) return { ok: false, error: 'Не удалось удалить' }
 
   revalidatePath('/accounting-expenses')

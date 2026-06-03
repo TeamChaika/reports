@@ -116,6 +116,7 @@ export default async function DashboardPage({
   const { data: accExpenses } = await supabase
     .from('accounting_expenses')
     .select('total_amount, group_id')
+    .eq('is_deleted', false)
     .gte('expense_date', from)
     .lte('expense_date', to)
 
