@@ -63,10 +63,12 @@ export async function createWaiterAction(
     .select('code')
     .not('code', 'is', null)
     .limit(5000)
+  // Cap at < 100000 — some employees store a phone number in `code`, which would
+  // otherwise inflate the next табельный номер to an 11-digit value.
   let maxCode = 0
   for (const c of codes ?? []) {
     const n = parseInt(String(c.code), 10)
-    if (Number.isFinite(n) && n > maxCode) maxCode = n
+    if (Number.isFinite(n) && n > maxCode && n < 100000) maxCode = n
   }
   const code = String(maxCode + 1)
 
