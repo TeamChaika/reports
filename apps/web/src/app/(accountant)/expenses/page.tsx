@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { ExpenseTable } from './ExpenseTable'
 import { AccountingFiles } from './AccountingFiles'
+import { ExpenseCategories } from './ExpenseCategories'
 
 export default async function ExpenseCategoriesPage() {
   const profile = await getProfileOrRedirect()
@@ -95,6 +96,8 @@ export default async function ExpenseCategoriesPage() {
             </div>
           </div>
         </div>
+
+        <ExpenseCategories categories={expenseGroups ?? []} />
 
         <ExpenseTable expenses={rows} expenseGroups={expenseGroups ?? []} />
 
