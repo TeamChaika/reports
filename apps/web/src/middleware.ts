@@ -4,7 +4,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 // Hostname → allowed path prefixes + post-auth redirect
 const DOMAIN_CONFIG: Record<string, { allowed: string[]; home: string }> = {
   'reports.chaika.team': {
-    allowed: ['/reports', '/login', '/auth', '/change-password'],
+    allowed: ['/reports', '/waiters', '/login', '/auth', '/change-password'],
     home: '/reports',
   },
   'office.chaika.team': {

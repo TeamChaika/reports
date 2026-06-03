@@ -27,6 +27,10 @@ export default function ManagerLayout({ children }: { children: React.ReactNode 
           >
             Chaika Team
           </Link>
+          <span className="hidden sm:inline" style={{ color: 'var(--color-border)' }} aria-hidden="true">·</span>
+          <Link href="/waiters" className="hidden sm:inline text-sm" style={{ color: 'var(--color-text-muted)' }}>
+            Официанты
+          </Link>
         </div>
 
         {/* Right: actions */}
