@@ -21,6 +21,18 @@ async function authenticate(): Promise<string> {
   return key
 }
 
+// Release the iiko session — otherwise every waiter create/edit leaks a session
+// and the concurrent-session pool fills up → auth starts returning 403.
+async function logout(key: string): Promise<void> {
+  const base = process.env['IIKO_BASE_URL']
+  if (!base) return
+  try {
+    await fetch(`${base}/resto/api/logout?key=${key}`, { signal: AbortSignal.timeout(10_000) })
+  } catch {
+    // best effort
+  }
+}
+
 export type NewWaiter = {
   id: string            // UUID we generate
   code: string          // табельный номер
@@ -79,6 +91,8 @@ export async function createIikoWaiter(w: NewWaiter): Promise<{ ok: boolean; err
     return { ok: false, error: `iiko ${res.status}: ${errText.slice(0, 200)}` }
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : 'iiko request failed' }
+  } finally {
+    await logout(key)
   }
 }
 
@@ -109,7 +123,10 @@ export async function updateIikoWaiter(
   if (fields.cardNumber !== undefined) body.set('cardNumber', fields.cardNumber)
   if (fields.pinCode) body.set('pinCode', fields.pinCode)
 
-  if ([...body.keys()].length === 0) return { ok: true } // nothing to change
+  if ([...body.keys()].length === 0) {
+    await logout(key)
+    return { ok: true } // nothing to change
+  }
 
   try {
     const res = await fetch(`${base}/resto/api/employees/byId/${id}?key=${key}`, {
@@ -127,5 +144,7 @@ export async function updateIikoWaiter(
     return { ok: false, error: `iiko ${res.status}: ${errText.slice(0, 200)}` }
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : 'iiko request failed' }
+  } finally {
+    await logout(key)
   }
 }

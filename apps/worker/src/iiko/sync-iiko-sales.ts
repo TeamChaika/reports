@@ -1,4 +1,4 @@
-import { iikoPost, type IikoConfig } from './client'
+import { iikoPost, iikoAuth, iikoLogout, type IikoConfig } from './client'
 import { db } from '../lib/supabase'
 
 function dateStr(d: Date): string {
@@ -49,12 +49,22 @@ interface DiscountRow {
 }
 
 // Syncs OLAP sales data into iiko_olap_cache (by pay type) and iiko_hourly_cache (by hour).
-// Window: last 35 days through tomorrow so the current open shift is included.
+// Default window: last 35 days through tomorrow so the current open shift is included.
+// Pass fromOverride/toOverride for historical backfill.
 export async function syncIikoSales(
   config: IikoConfig,
+  fromOverride?: string,
+  toOverride?: string,
+  presetKey?: string,
 ): Promise<{ payTypes: number; hourly: number; summary: number; discounts: number }> {
-  const from = dateStr(new Date(Date.now() - 35 * 86_400_000))
-  const to = dateStr(new Date(Date.now() + 86_400_000))
+  const from = fromOverride ?? dateStr(new Date(Date.now() - 35 * 86_400_000))
+  const to = toOverride ?? dateStr(new Date(Date.now() + 86_400_000))
+
+  // Authenticate once and reuse the key for all 4 OLAP queries — avoids
+  // exhausting iiko's concurrent-session pool (re-auth per request → 403).
+  // A caller (e.g. a long backfill) may pass its own key to reuse one session.
+  const ownKey = !presetKey
+  const key = presetKey ?? await iikoAuth(config)
 
   // department name → id
   const { data: depts } = await db
@@ -72,7 +82,7 @@ export async function syncIikoSales(
     groupByRowFields: ['OpenDate.Typed', 'Department', 'PayTypes'],
     aggregateFields: ['DishAmountInt', 'DishSumInt', 'DishDiscountSumInt'],
     filters: { 'OpenDate.Typed': { filterType: 'DateRange', periodType: 'CUSTOM', from, to } },
-  })
+  }, key)
   const payRows = rows(payRes)
 
   const payRecords = payRows.map(r => ({
@@ -100,7 +110,7 @@ export async function syncIikoSales(
     groupByRowFields: ['OpenDate.Typed', 'Department', 'HourOpen'],
     aggregateFields: ['DishDiscountSumInt', 'UniqOrderId.OrdersCount', 'GuestNum'],
     filters: { 'OpenDate.Typed': { filterType: 'DateRange', periodType: 'CUSTOM', from, to } },
-  })
+  }, key)
   const hourRows = rows(hourRes)
 
   const hourRecords = hourRows
@@ -130,7 +140,7 @@ export async function syncIikoSales(
     groupByRowFields: ['OpenDate.Typed', 'Department'],
     aggregateFields: ['DishSumInt', 'DishDiscountSumInt', 'DiscountSum', 'ProductCostBase.Profit', 'ProductCostBase.ProductCost', 'ProductCostBase.MarkUp', 'DiscountPercent'],
     filters: { 'OpenDate.Typed': { filterType: 'DateRange', periodType: 'CUSTOM', from, to } },
-  })
+  }, key)
   const sumRecords = rows(sumRes)
     .map(r => ({
       department_id: deptByName.get(r.Department) ?? null,
@@ -161,7 +171,7 @@ export async function syncIikoSales(
     groupByRowFields: ['OpenDate.Typed', 'Department', 'OrderDiscount.Type'],
     aggregateFields: ['DiscountSum'],
     filters: { 'OpenDate.Typed': { filterType: 'DateRange', periodType: 'CUSTOM', from, to } },
-  })
+  }, key)
   const discRecords = rows(discRes)
     .map(r => ({
       department_id: deptByName.get(r.Department) ?? null,
@@ -180,5 +190,6 @@ export async function syncIikoSales(
     if (error) throw new Error(`sync discounts: ${error.message}`)
   }
 
+  if (ownKey) await iikoLogout(config, key)
   return { payTypes: payRecords.length, hourly: hourRecords.length, summary: sumRecords.length, discounts: discRecords.length }
 }

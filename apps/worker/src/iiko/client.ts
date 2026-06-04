@@ -10,7 +10,7 @@ function sha1(str: string): string {
   return createHash('sha1').update(str).digest('hex')
 }
 
-async function authenticate(config: IikoConfig): Promise<string> {
+export async function iikoAuth(config: IikoConfig): Promise<string> {
   const url = `${config.baseUrl}/resto/api/auth?login=${encodeURIComponent(config.login)}&pass=${sha1(config.password)}`
   const res = await fetch(url, { signal: AbortSignal.timeout(10_000) })
   if (!res.ok) throw new Error(`iiko auth failed: ${res.status}`)
@@ -19,9 +19,18 @@ async function authenticate(config: IikoConfig): Promise<string> {
   return key
 }
 
+// Release the iiko session so we don't exhaust the concurrent-session pool.
+export async function iikoLogout(config: IikoConfig, key: string): Promise<void> {
+  try {
+    await fetch(`${config.baseUrl}/resto/api/logout?key=${key}`, { signal: AbortSignal.timeout(10_000) })
+  } catch {
+    // best effort
+  }
+}
+
 // Returns raw response text — caller decides JSON vs XML
-export async function iikoFetch(config: IikoConfig, path: string): Promise<string> {
-  const key = await authenticate(config)
+export async function iikoFetch(config: IikoConfig, path: string, presetKey?: string): Promise<string> {
+  const key = presetKey ?? await iikoAuth(config)
   const sep = path.includes('?') ? '&' : '?'
   const res = await fetch(`${config.baseUrl}${path}${sep}key=${key}`, {
     signal: AbortSignal.timeout(30_000),
@@ -30,8 +39,8 @@ export async function iikoFetch(config: IikoConfig, path: string): Promise<strin
   return res.text()
 }
 
-export async function iikoPost<T>(config: IikoConfig, path: string, body: unknown): Promise<T> {
-  const key = await authenticate(config)
+export async function iikoPost<T>(config: IikoConfig, path: string, body: unknown, presetKey?: string): Promise<T> {
+  const key = presetKey ?? await iikoAuth(config)
   const sep = path.includes('?') ? '&' : '?'
   const res = await fetch(`${config.baseUrl}${path}${sep}key=${key}`, {
     method: 'POST',
