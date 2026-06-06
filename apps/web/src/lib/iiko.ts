@@ -1,9 +1,18 @@
 import 'server-only'
 import { createHash } from 'crypto'
+import { createAdminClient } from './supabase/server'
 
 function sha1(s: string): string {
   return createHash('sha1').update(s).digest('hex')
 }
+
+// ── Shared session cache ─────────────────────────────────────────────────────
+// The iiko key is stored in a single-row table (id = 1) shared with the worker,
+// so both reuse ONE session instead of authenticating per request. Re-auth per
+// call exhausts iiko's concurrent-session pool and /resto/api/auth returns 403.
+// The key is refreshed once it's older than MAX_AGE_MS.
+const SESSION_ID = 1
+const MAX_AGE_MS = 15 * 60 * 1000
 
 async function authenticate(): Promise<string> {
   const base = process.env['IIKO_BASE_URL']
@@ -21,8 +30,6 @@ async function authenticate(): Promise<string> {
   return key
 }
 
-// Release the iiko session — otherwise every waiter create/edit leaks a session
-// and the concurrent-session pool fills up → auth starts returning 403.
 async function logout(key: string): Promise<void> {
   const base = process.env['IIKO_BASE_URL']
   if (!base) return
@@ -31,6 +38,59 @@ async function logout(key: string): Promise<void> {
   } catch {
     // best effort
   }
+}
+
+type SessionRow = { key: string; created_at: string }
+
+async function getIikoKey(): Promise<string> {
+  const db = createAdminClient()
+  const { data } = await db
+    .from('iiko_session')
+    .select('key, created_at')
+    .eq('id', SESSION_ID)
+    .maybeSingle<SessionRow>()
+
+  if (data?.key && Date.now() - new Date(data.created_at).getTime() < MAX_AGE_MS) {
+    return data.key
+  }
+
+  const key = await authenticate()
+  await db.from('iiko_session').upsert({ id: SESSION_ID, key, created_at: new Date().toISOString() })
+  // Free the previous session slot so it doesn't linger until iiko's idle timeout.
+  if (data?.key && data.key !== key) await logout(data.key)
+  return key
+}
+
+async function invalidateIikoKey(): Promise<void> {
+  const db = createAdminClient()
+  await db.from('iiko_session').delete().eq('id', SESSION_ID)
+}
+
+// POSTs to /employees/byId/{UUID} with the shared key; on 401/403 (expired key)
+// drops the cache, re-authenticates once and retries. Returns the raw status +
+// body so the caller can map known conflicts to friendly messages.
+async function postEmployee(
+  base: string,
+  id: string,
+  body: URLSearchParams,
+): Promise<{ status: number; text: string }> {
+  const send = async (key: string) => {
+    const res = await fetch(`${base}/resto/api/employees/byId/${id}?key=${key}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body,
+      signal: AbortSignal.timeout(30_000),
+    })
+    const text = res.status === 200 || res.status === 201 ? '' : await res.text()
+    return { status: res.status, text }
+  }
+
+  let result = await send(await getIikoKey())
+  if (result.status === 401 || result.status === 403) {
+    await invalidateIikoKey()
+    result = await send(await getIikoKey())
+  }
+  return result
 }
 
 export type NewWaiter = {
@@ -49,13 +109,6 @@ export async function createIikoWaiter(w: NewWaiter): Promise<{ ok: boolean; err
   const base = process.env['IIKO_BASE_URL']
   if (!base) return { ok: false, error: 'iiko не настроен' }
 
-  let key: string
-  try {
-    key = await authenticate()
-  } catch (err) {
-    return { ok: false, error: err instanceof Error ? err.message : 'iiko auth error' }
-  }
-
   const body = new URLSearchParams({
     code: w.code,
     name: w.name,
@@ -72,27 +125,19 @@ export async function createIikoWaiter(w: NewWaiter): Promise<{ ok: boolean; err
   if (w.cardNumber) body.set('cardNumber', w.cardNumber)
 
   try {
-    const res = await fetch(`${base}/resto/api/employees/byId/${w.id}?key=${key}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body,
-      signal: AbortSignal.timeout(30_000),
-    })
-    if (res.status === 200 || res.status === 201) return { ok: true }
+    const { status, text } = await postEmployee(base, w.id, body)
+    if (status === 200 || status === 201) return { ok: true }
 
-    const errText = await res.text()
     // Friendly messages for known conflicts
-    if (errText.includes('ПИН') || errText.toLowerCase().includes('pin')) {
+    if (text.includes('ПИН') || text.toLowerCase().includes('pin')) {
       return { ok: false, error: 'Этот пин-код уже занят — выберите другой' }
     }
-    if (res.status === 409) {
+    if (status === 409) {
       return { ok: false, error: 'Конфликт: такой код или пин уже существует' }
     }
-    return { ok: false, error: `iiko ${res.status}: ${errText.slice(0, 200)}` }
+    return { ok: false, error: `iiko ${status}: ${text.slice(0, 200)}` }
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : 'iiko request failed' }
-  } finally {
-    await logout(key)
   }
 }
 
@@ -111,40 +156,22 @@ export async function updateIikoWaiter(
   const base = process.env['IIKO_BASE_URL']
   if (!base) return { ok: false, error: 'iiko не настроен' }
 
-  let key: string
-  try {
-    key = await authenticate()
-  } catch (err) {
-    return { ok: false, error: err instanceof Error ? err.message : 'iiko auth error' }
-  }
-
   const body = new URLSearchParams()
   if (fields.name !== undefined) body.set('name', fields.name)
   if (fields.cardNumber !== undefined) body.set('cardNumber', fields.cardNumber)
   if (fields.pinCode) body.set('pinCode', fields.pinCode)
 
-  if ([...body.keys()].length === 0) {
-    await logout(key)
-    return { ok: true } // nothing to change
-  }
+  if ([...body.keys()].length === 0) return { ok: true } // nothing to change
 
   try {
-    const res = await fetch(`${base}/resto/api/employees/byId/${id}?key=${key}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body,
-      signal: AbortSignal.timeout(30_000),
-    })
-    if (res.status === 200 || res.status === 201) return { ok: true }
+    const { status, text } = await postEmployee(base, id, body)
+    if (status === 200 || status === 201) return { ok: true }
 
-    const errText = await res.text()
-    if (errText.includes('ПИН') || errText.toLowerCase().includes('pin')) {
+    if (text.includes('ПИН') || text.toLowerCase().includes('pin')) {
       return { ok: false, error: 'Этот пин-код уже занят — выберите другой' }
     }
-    return { ok: false, error: `iiko ${res.status}: ${errText.slice(0, 200)}` }
+    return { ok: false, error: `iiko ${status}: ${text.slice(0, 200)}` }
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : 'iiko request failed' }
-  } finally {
-    await logout(key)
   }
 }
