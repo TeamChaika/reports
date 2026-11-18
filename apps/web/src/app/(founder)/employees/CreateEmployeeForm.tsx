@@ -73,6 +73,9 @@ export default function CreateEmployeeForm({ establishments }: Props) {
             </div>
           )}
 
+          <p className="text-sm mt-4" style={{ color: 'var(--color-text-muted)' }}>
+            Для нового аккаунта администратор Supabase сначала отправляет приглашение на e-mail.
+          </p>
           <form ref={formRef} onSubmit={handleSubmit} className="mt-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="form-group">
@@ -101,21 +104,6 @@ export default function CreateEmployeeForm({ establishments }: Props) {
                   className="input"
                   placeholder="ivan@example.com"
                   autoComplete="off"
-                  required
-                />
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="emp-password" className="label label--required">
-                  Пароль
-                </label>
-                <input
-                  id="emp-password"
-                  name="password"
-                  type="password"
-                  className="input"
-                  placeholder="Минимум 8 символов"
-                  autoComplete="new-password"
                   required
                 />
               </div>
@@ -168,10 +156,10 @@ export default function CreateEmployeeForm({ establishments }: Props) {
                 {isPending ? (
                   <>
                     <span className="spinner spinner--sm" aria-hidden="true" />
-                    Создание...
+                    Сохранение...
                   </>
                 ) : (
-                  'Создать сотрудника'
+                  'Выдать доступ'
                 )}
               </button>
             </div>

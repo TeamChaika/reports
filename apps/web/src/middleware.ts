@@ -25,6 +25,8 @@ function getDomainConfig(request: NextRequest) {
 }
 
 export async function middleware(request: NextRequest) {
+  if (request.nextUrl.pathname === '/auth/confirm') return NextResponse.next()
+
   let supabaseResponse = NextResponse.next({ request })
 
   const supabase = createServerClient(

@@ -4,14 +4,13 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { z } from 'zod'
 import { getProfileOrRedirect } from '@/lib/auth'
-import { createAdminClient } from '@/lib/supabase/server'
+import { createAdminClient, createClient } from '@/lib/supabase/server'
 
 const createEmployeeSchema = z.object({
-  full_name: z.string().min(2, 'Имя должно содержать минимум 2 символа'),
-  email: z.string().email('Некорректный e-mail'),
-  password: z.string().min(8, 'Пароль должен содержать минимум 8 символов'),
+  full_name: z.string().trim().min(2, 'Имя должно содержать минимум 2 символа').max(200),
+  email: z.string().trim().email('Некорректный e-mail').max(254),
   role: z.enum(['manager', 'accountant'], { message: 'Некорректная роль' }),
-  establishment_ids: z.array(z.string().uuid()).min(1, 'Выберите хотя бы одно заведение'),
+  establishment_ids: z.array(z.string().uuid()).min(1, 'Выберите хотя бы одно заведение').max(100),
 })
 
 async function requireFounder() {
@@ -25,13 +24,11 @@ async function requireFounder() {
 export async function createEmployeeAction(
   formData: FormData,
 ): Promise<{ ok: boolean; error?: string }> {
-  const profile = await requireFounder()
-  void profile
+  await requireFounder()
 
   const raw = {
     full_name: formData.get('full_name'),
     email: formData.get('email'),
-    password: formData.get('password'),
     role: formData.get('role'),
     establishment_ids: formData.getAll('establishment_ids'),
   }
@@ -42,63 +39,23 @@ export async function createEmployeeAction(
     return { ok: false, error: firstError?.message ?? 'Некорректные данные' }
   }
 
-  const { full_name, email, password, role, establishment_ids } = parsed.data
-
-  const adminClient = createAdminClient()
-
-  const { data: authData, error: authError } = await adminClient.auth.admin.createUser({
-    email,
-    password,
-    email_confirm: true,
+  const { full_name, email, role, establishment_ids } = parsed.data
+  const supabase = await createClient()
+  const { error } = await supabase.rpc('assign_invited_employee', {
+    p_email: email,
+    p_full_name: full_name,
+    p_role: role,
+    p_establishment_ids: establishment_ids,
   })
-
-  if (authError || !authData.user) {
-    const msg = authError?.message ?? 'Не удалось создать пользователя'
-    if (msg.includes('already registered') || msg.includes('already been registered')) {
-      return { ok: false, error: 'Пользователь с таким e-mail уже существует' }
+  if (error) {
+    if (error.code === 'P0002') {
+      return { ok: false, error: 'Попросите администратора Supabase пригласить сотрудника на этот e-mail' }
     }
-    return { ok: false, error: msg }
-  }
-
-  const userId = authData.user.id
-
-  const { error: profileError } = await adminClient
-    .from('profiles')
-    .upsert({ id: userId, full_name, role, is_active: true, must_change_password: true })
-
-  if (profileError) {
-    await adminClient.auth.admin.deleteUser(userId)
-    return { ok: false, error: 'Не удалось создать профиль сотрудника' }
-  }
-
-  const { error: estError } = await adminClient
-    .from('establishment_users')
-    .insert(establishment_ids.map(eid => ({ user_id: userId, establishment_id: eid })))
-
-  if (estError) {
-    await adminClient.from('profiles').delete().eq('id', userId)
-    await adminClient.auth.admin.deleteUser(userId)
-    return { ok: false, error: 'Не удалось привязать сотрудника к заведению' }
+    if (error.code === '23505') return { ok: false, error: 'У сотрудника уже есть доступ к отчётам' }
+    return { ok: false, error: 'Не удалось выдать доступ к отчётам' }
   }
 
   revalidatePath('/employees')
-  return { ok: true }
-}
-
-export async function changePasswordAction(
-  userId: string,
-  newPassword: string,
-): Promise<{ ok: boolean; error?: string }> {
-  await requireFounder()
-
-  if (!newPassword || newPassword.length < 8) {
-    return { ok: false, error: 'Пароль должен содержать минимум 8 символов' }
-  }
-
-  const adminClient = createAdminClient()
-  const { error } = await adminClient.auth.admin.updateUserById(userId, { password: newPassword })
-
-  if (error) return { ok: false, error: 'Не удалось сменить пароль' }
   return { ok: true }
 }
 
